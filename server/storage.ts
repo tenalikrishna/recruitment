@@ -6,7 +6,7 @@ import {
   type Assignment, type InsertAssignment,
   type TeleInterview, type InsertTeleInterview,
 } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 
@@ -50,7 +50,16 @@ export async function createAdminUser(data: {
 }
 
 export async function deleteAdminUser(id: string): Promise<void> {
+  // Remove FK references first to avoid constraint violations
+  await db.delete(teleInterviews).where(eq(teleInterviews.conductedById, id));
+  await db.delete(assignments).where(
+    or(eq(assignments.screenerId, id), eq(assignments.assignedById, id))
+  );
   await db.delete(adminUsers).where(eq(adminUsers.id, id));
+}
+
+export async function updateAdminUserRoles(id: string, roles: string): Promise<void> {
+  await db.update(adminUsers).set({ role: roles }).where(eq(adminUsers.id, id));
 }
 
 export async function updateAdminUserPassword(id: string, newPassword: string): Promise<void> {
@@ -162,6 +171,7 @@ export const storage = {
   createAdminUser,
   deleteAdminUser,
   updateAdminUserPassword,
+  updateAdminUserRoles,
   getAllApplications,
   getApplication,
   createApplication,

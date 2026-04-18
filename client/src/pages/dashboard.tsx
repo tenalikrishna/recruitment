@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useAdminAuth, RequireAdminAuth } from "@/lib/auth";
+import { useAdminAuth, RequireAdminAuth, hasRole } from "@/lib/auth";
 import AdminLayout from "./layout";
 import { Phone, Clock, CheckCircle, XCircle, Users, ChevronRight, X, CalendarCheck } from "lucide-react";
 
@@ -171,7 +171,7 @@ function ScreenerDashboard() {
 
 // ─── Admin / Core Team Dashboard ──────────────────────────────────────────────
 
-function ManagerDashboard() {
+function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const [, navigate] = useLocation();
   const [applications, setApplications] = useState<Application[]>([]);
   const [interviews, setInterviews] = useState<TeleInterview[]>([]);
@@ -253,16 +253,18 @@ function ManagerDashboard() {
           <h1 className="text-white text-xl font-semibold">Dashboard</h1>
           <p className="text-white/40 text-sm mt-0.5">Click a tile to view applicants</p>
         </div>
-        <div className="flex items-center gap-3">
-          {syncMsg && <span className="text-sm text-green-400">{syncMsg}</span>}
-          <button
-            onClick={handleSync}
-            disabled={syncing}
-            className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition"
-          >
-            {syncing ? "Syncing…" : "Sync from Website"}
-          </button>
-        </div>
+        {!readOnly && (
+          <div className="flex items-center gap-3">
+            {syncMsg && <span className="text-sm text-green-400">{syncMsg}</span>}
+            <button
+              onClick={handleSync}
+              disabled={syncing}
+              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition"
+            >
+              {syncing ? "Syncing…" : "Sync from Website"}
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -310,8 +312,8 @@ function ManagerDashboard() {
                   {filteredApplicants.map(app => (
                     <button
                       key={app.id}
-                      onClick={() => navigate(`/applicants?highlight=${app.id}`)}
-                      className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition text-left group"
+                      onClick={() => !readOnly && navigate(`/applicants?highlight=${app.id}`)}
+                      className={`w-full flex items-center justify-between px-5 py-3.5 transition text-left group ${readOnly ? "cursor-default" : "hover:bg-white/5"}`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-blue-600/20 flex items-center justify-center shrink-0">
@@ -345,10 +347,20 @@ function ManagerDashboard() {
 
 export default function AdminDashboard() {
   const { user } = useAdminAuth();
+  const isScreenerOnly = user ? (user.role === "screener") : false;
   return (
     <RequireAdminAuth>
       <AdminLayout>
-        {user?.role === "screener" ? <ScreenerDashboard /> : <ManagerDashboard />}
+        <div className="space-y-10">
+          <ManagerDashboard readOnly={isScreenerOnly} />
+          {isScreenerOnly && (
+            <div>
+              <div className="border-t border-white/10 pt-8">
+                <ScreenerDashboard />
+              </div>
+            </div>
+          )}
+        </div>
       </AdminLayout>
     </RequireAdminAuth>
   );

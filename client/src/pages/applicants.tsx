@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { RequireAdminAuth, useAdminAuth } from "@/lib/auth";
+import { RequireAdminAuth, useAdminAuth, hasRole } from "@/lib/auth";
 import AdminLayout from "./layout";
 import { Plus, Trash2, UserPlus, X, ChevronRight, Phone, Mail, MapPin, Calendar, Download, CheckSquare, Square } from "lucide-react";
 import * as XLSX from "xlsx";
@@ -289,12 +289,12 @@ export default function ApplicantsPage() {
     async function load() {
       await reload();
       const fetches: Promise<void>[] = [];
-      if (user?.role !== "screener") {
+      if (!hasRole(user, "screener") || hasRole(user, "admin", "core_team")) {
         fetches.push(
           fetch("/api/screeners", { credentials: "include" }).then(r => r.json()).then(setScreeners)
         );
       }
-      if (user?.role === "admin" || user?.role === "core_team") {
+      if (hasRole(user, "admin", "core_team")) {
         fetches.push(
           fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews)
         );
@@ -398,7 +398,7 @@ export default function ApplicantsPage() {
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-white text-xl font-semibold">Applicants</h1>
               <div className="flex items-center gap-2">
-                {user?.role === "admin" && (
+                {hasRole(user, "admin") && (
                   <button
                     onClick={handleExport}
                     title={selectedIds.size > 0 ? `Export ${selectedIds.size} selected` : "Export all"}
@@ -408,7 +408,7 @@ export default function ApplicantsPage() {
                     {selectedIds.size > 0 ? `Export (${selectedIds.size})` : "Export All"}
                   </button>
                 )}
-                {user?.role === "admin" && (
+                {hasRole(user, "admin") && (
                   <button
                     onClick={() => setShowAddForm(true)}
                     className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-xl transition"
@@ -443,7 +443,7 @@ export default function ApplicantsPage() {
             </div>
 
             {/* Select-all row */}
-            {user?.role === "admin" && !loading && filtered.length > 0 && (
+            {hasRole(user, "admin") && !loading && filtered.length > 0 && (
               <div className="flex items-center gap-2 px-2 mb-2">
                 <button
                   onClick={toggleSelectAll}
@@ -481,7 +481,7 @@ export default function ApplicantsPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2.5 min-w-0">
                           {/* Checkbox (admin only) */}
-                          {user?.role === "admin" && (
+                          {hasRole(user, "admin") && (
                             <div
                               onClick={e => toggleSelect(app.id, e)}
                               className={`shrink-0 w-4 h-4 rounded border flex items-center justify-center transition ${
@@ -536,7 +536,7 @@ export default function ApplicantsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {user?.role === "admin" && (
+                  {hasRole(user, "admin") && (
                     <button
                       onClick={() => handleDelete(selected.id)}
                       className="p-2 text-red-400/60 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition"
@@ -593,7 +593,7 @@ export default function ApplicantsPage() {
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Screener Assignment</p>
                 {(() => {
                   const asg = getAssignment(selected.id);
-                  const canAssign = user?.role === "admin" || user?.role === "core_team";
+                  const canAssign = hasRole(user, "admin", "core_team");
                   return (
                     <div className="space-y-3">
                       {asg && (

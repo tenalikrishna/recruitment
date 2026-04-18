@@ -8,8 +8,31 @@ export interface AdminUser {
   name: string;
   email: string;
   username: string;
-  role: AdminRole;
+  role: string;           // comma-separated: "admin", "admin,screener", etc.
   createdAt: string;
+}
+
+// Parse the comma-separated role string into an array
+export function parseRoles(role: string | undefined | null): string[] {
+  if (!role) return [];
+  return role.split(",").map(r => r.trim()).filter(Boolean);
+}
+
+// Check whether a user has at least one of the given roles
+export function hasRole(user: { role: string } | null | undefined, ...roles: string[]): boolean {
+  if (!user?.role) return false;
+  const userRoles = parseRoles(user.role);
+  return roles.some(r => userRoles.includes(r));
+}
+
+// Display label for the primary (first) role — or all roles joined
+export function roleLabel(role: string | undefined | null): string {
+  const labels: Record<string, string> = {
+    admin: "Leadership",
+    core_team: "Core Team",
+    screener: "Screener",
+  };
+  return parseRoles(role).map(r => labels[r] || r).join(" · ");
 }
 
 interface AuthContextValue {
@@ -66,7 +89,7 @@ export function useAdminAuth() {
   return ctx;
 }
 
-export function RequireAdminAuth({ children, roles }: { children: ReactNode; roles?: AdminRole[] }) {
+export function RequireAdminAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, loading } = useAdminAuth();
   const [, navigate] = useLocation();
 
@@ -82,7 +105,7 @@ export function RequireAdminAuth({ children, roles }: { children: ReactNode; rol
 
   if (!user) return null;
 
-  if (roles && !roles.includes(user.role)) return (
+  if (roles && !hasRole(user, ...roles)) return (
     <div className="min-h-screen flex items-center justify-center bg-gray-950">
       <div className="text-center">
         <p className="text-red-400 font-semibold">Access Denied</p>

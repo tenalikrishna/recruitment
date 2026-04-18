@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { useLocation, Link } from "wouter";
-import { useAdminAuth } from "@/lib/auth";
+import { useAdminAuth, hasRole, roleLabel } from "@/lib/auth";
 import {
   Users, ClipboardList, UserCog, LogOut, LayoutDashboard, Menu, X
 } from "lucide-react";
@@ -19,24 +19,13 @@ const navItems: NavItem[] = [
   { label: "Team", href: "/users", icon: <UserCog size={18} />, roles: ["admin"] },
 ];
 
-const roleLabels: Record<string, string> = {
-  admin: "Leadership",
-  core_team: "Core Team",
-  screener: "Screener",
-};
-
-const roleBadgeColors: Record<string, string> = {
-  admin: "bg-purple-500/20 text-purple-300",
-  core_team: "bg-blue-500/20 text-blue-300",
-  screener: "bg-green-500/20 text-green-300",
-};
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { user, logout } = useAdminAuth();
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const visibleNav = navItems.filter(n => user && n.roles.includes(user.role));
+  const visibleNav = navItems.filter(n => user && n.roles.some(r => hasRole(user, r)));
 
   async function handleLogout() {
     await logout();
@@ -84,9 +73,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="px-3 py-4 border-t border-white/10">
         <div className="px-3 py-2 mb-2">
           <p className="text-white text-sm font-medium truncate">{user?.name}</p>
-          <span className={`inline-block text-xs px-2 py-0.5 rounded-full mt-1 ${roleBadgeColors[user?.role || "screener"]}`}>
-            {roleLabels[user?.role || "screener"]}
-          </span>
+          <p className="text-white/40 text-xs mt-1 truncate">{roleLabel(user?.role)}</p>
         </div>
         <button
           onClick={handleLogout}

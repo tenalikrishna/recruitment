@@ -11,9 +11,10 @@ function requireAuth(req: Request, res: Response, next: NextFunction) {
 function requireRole(...roles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     const user = req.user as any;
-    if (!user || !roles.includes(user.role)) {
+    if (!user || !user.role) return res.status(403).json({ message: "Forbidden" });
+    const userRoles: string[] = user.role.split(",").map((r: string) => r.trim());
+    if (!roles.some(r => userRoles.includes(r)))
       return res.status(403).json({ message: "Forbidden" });
-    }
     next();
   };
 }
@@ -23,7 +24,7 @@ const createUserSchema = z.object({
   email: z.string().email(),
   username: z.string().min(3),
   password: z.string().min(6),
-  role: z.enum(["admin", "core_team", "screener"]),
+  role: z.string().min(1),  // comma-separated: "admin,screener"
 });
 
 const createApplicationSchema = z.object({
@@ -150,6 +151,14 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
+  app.patch("/api/users/:id/roles", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { roles } = z.object({ roles: z.string().min(1) }).parse(req.body);
+      await storage.updateAdminUserRoles(req.params.id, roles);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
   app.patch("/api/users/:id/username", requireAuth, requireRole("admin"), async (req, res, next) => {
     try {
       const { username } = z.object({ username: z.string().min(3) }).parse(req.body);
@@ -207,7 +216,7 @@ export function registerRoutes(app: Express) {
   });
 
   // ── Interviews ────────────────────────────────────────────────────────────────
-  app.get("/api/interviews", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+  app.get("/api/interviews", requireAuth, async (req, res, next) => {
     try { res.json(await storage.getAllTeleInterviews()); } catch (err) { next(err); }
   });
 

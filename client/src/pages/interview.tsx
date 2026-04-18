@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
-import { RequireAdminAuth, useAdminAuth } from "@/lib/auth";
+import { RequireAdminAuth, useAdminAuth, hasRole } from "@/lib/auth";
 import AdminLayout from "./layout";
 import { ChevronLeft, CheckCircle, AlertTriangle, XCircle, Save } from "lucide-react";
 
@@ -286,7 +286,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
         const progs = ivData.selectedPrograms ? JSON.parse(ivData.selectedPrograms) : [];
         const subj  = ivData.subjectExpertise ? JSON.parse(ivData.subjectExpertise) : [];
         setForm({ ...defaultForm, ...ivData, selectedAreas: areas, selectedPrograms: progs, subjectExpertise: subj });
-        if (user?.role === "screener" && appData.status === "interviewed") setReadOnly(true);
+        if (hasRole(user, "screener") && !hasRole(user, "admin", "core_team") && appData.status === "interviewed") setReadOnly(true);
       }
       setLoading(false);
     }
