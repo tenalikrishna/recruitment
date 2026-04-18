@@ -22,6 +22,15 @@ export async function getAdminUserByUsername(username: string): Promise<AdminUse
   return result[0];
 }
 
+export async function getAdminUserByEmail(email: string): Promise<AdminUser | undefined> {
+  const result = await db.select().from(adminUsers).where(eq(adminUsers.email, email.toLowerCase().trim()));
+  return result[0];
+}
+
+export async function updateAdminUserUsername(id: string, username: string): Promise<void> {
+  await db.update(adminUsers).set({ username }).where(eq(adminUsers.id, id));
+}
+
 export async function getAllAdminUsers(): Promise<AdminUser[]> {
   return db.select().from(adminUsers).orderBy(adminUsers.createdAt);
 }
@@ -109,6 +118,10 @@ export async function deleteAssignment(id: string): Promise<void> {
 
 // ─── Tele Interviews ──────────────────────────────────────────────────────────
 
+export async function getAllTeleInterviews(): Promise<TeleInterview[]> {
+  return db.select().from(teleInterviews);
+}
+
 export async function getTeleInterview(applicationId: string): Promise<TeleInterview | undefined> {
   const result = await db.select().from(teleInterviews).where(eq(teleInterviews.applicationId, applicationId));
   return result[0];
@@ -143,6 +156,8 @@ export async function updateTeleInterview(id: string, data: Partial<InsertTeleIn
 export const storage = {
   getAdminUser,
   getAdminUserByUsername,
+  getAdminUserByEmail,
+  updateAdminUserUsername,
   getAllAdminUsers,
   createAdminUser,
   deleteAdminUser,
@@ -158,6 +173,7 @@ export const storage = {
   createAssignment,
   updateAssignmentStatus,
   deleteAssignment,
+  getAllTeleInterviews,
   getTeleInterview,
   createTeleInterview,
   updateTeleInterview,

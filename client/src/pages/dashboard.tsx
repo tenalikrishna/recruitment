@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAdminAuth, RequireAdminAuth } from "@/lib/auth";
 import AdminLayout from "./layout";
-import { Phone, Clock, CheckCircle, XCircle, Users, ClipboardList } from "lucide-react";
+import { Phone, Clock, CheckCircle, XCircle, Users, ChevronRight, X, CalendarCheck } from "lucide-react";
 
 interface Application {
   id: string;
@@ -23,12 +23,26 @@ interface Assignment {
   assignedAt: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: any }> = {
-  pending:     { label: "Pending",     color: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",  icon: Clock },
-  assigned:    { label: "Assigned",    color: "bg-blue-500/10 text-blue-400 border-blue-500/20",        icon: Phone },
-  interviewed: { label: "Interviewed", color: "bg-green-500/10 text-green-400 border-green-500/20",     icon: CheckCircle },
-  cleared:     { label: "Cleared",     color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", icon: CheckCircle },
-  rejected:    { label: "Rejected",    color: "bg-red-500/10 text-red-400 border-red-500/20",           icon: XCircle },
+interface TeleInterview {
+  id: string;
+  applicationId: string;
+  recruitmentDayAttendance: string | null;
+}
+
+const statusConfig: Record<string, { label: string; color: string; icon: any; border: string }> = {
+  pending:     { label: "Pending",     color: "text-yellow-400",   border: "border-yellow-500/20",   icon: Clock },
+  assigned:    { label: "Assigned",    color: "text-blue-400",     border: "border-blue-500/20",     icon: Phone },
+  interviewed: { label: "Interviewed", color: "text-green-400",    border: "border-green-500/20",    icon: CheckCircle },
+  cleared:     { label: "Cleared",     color: "text-emerald-400",  border: "border-emerald-500/20",  icon: CheckCircle },
+  rejected:    { label: "Rejected",    color: "text-red-400",      border: "border-red-500/20",      icon: XCircle },
+};
+
+const statusBadgeColors: Record<string, string> = {
+  pending:     "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  assigned:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  interviewed: "bg-green-500/10 text-green-400 border-green-500/20",
+  cleared:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  rejected:    "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
 // ─── Screener Dashboard ────────────────────────────────────────────────────────
@@ -81,7 +95,6 @@ function ScreenerDashboard() {
         <p className="text-white/40 text-sm mt-0.5">Hi {user?.name} — here are your calls to make</p>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-gray-900 border border-white/10 rounded-2xl p-4">
           <p className="text-white/40 text-xs uppercase tracking-wide">Pending</p>
@@ -93,7 +106,6 @@ function ScreenerDashboard() {
         </div>
       </div>
 
-      {/* Pending tiles */}
       {pending.length > 0 && (
         <div>
           <p className="text-white/50 text-xs font-medium uppercase tracking-wider mb-3">Pending Calls</p>
@@ -126,7 +138,6 @@ function ScreenerDashboard() {
         </div>
       )}
 
-      {/* Completed tiles */}
       {completed.length > 0 && (
         <div>
           <p className="text-white/50 text-xs font-medium uppercase tracking-wider mb-3">Completed</p>
@@ -163,9 +174,11 @@ function ScreenerDashboard() {
 function ManagerDashboard() {
   const [, navigate] = useLocation();
   const [applications, setApplications] = useState<Application[]>([]);
+  const [interviews, setInterviews] = useState<TeleInterview[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
+  const [selectedTile, setSelectedTile] = useState<string | null>(null);
 
   function loadApplications() {
     return fetch("/api/applications", { credentials: "include" })
@@ -174,7 +187,10 @@ function ManagerDashboard() {
   }
 
   useEffect(() => {
-    loadApplications().finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/applications", { credentials: "include" }).then(r => r.json()).then(setApplications),
+      fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews),
+    ]).finally(() => setLoading(false));
   }, []);
 
   async function handleSync() {
@@ -197,23 +213,38 @@ function ManagerDashboard() {
     }
   }
 
+  const recruitmentDayCount = interviews.filter(i => i.recruitmentDayAttendance === "yes").length;
+
   const counts = {
-    total: applications.length,
-    pending: applications.filter(a => a.status === "pending").length,
-    assigned: applications.filter(a => a.status === "assigned").length,
+    total:       applications.length,
+    pending:     applications.filter(a => a.status === "pending").length,
+    assigned:    applications.filter(a => a.status === "assigned").length,
     interviewed: applications.filter(a => a.status === "interviewed").length,
-    cleared: applications.filter(a => a.status === "cleared").length,
-    rejected: applications.filter(a => a.status === "rejected").length,
+    cleared:     applications.filter(a => a.status === "cleared").length,
+    rejected:    applications.filter(a => a.status === "rejected").length,
+    recruitment: recruitmentDayCount,
   };
 
   const tiles = [
-    { label: "Total",       value: counts.total,       color: "text-white",        border: "border-white/10",        status: "all" },
-    { label: "Pending",     value: counts.pending,     color: "text-yellow-400",   border: "border-yellow-500/20",   status: "pending" },
-    { label: "Assigned",    value: counts.assigned,    color: "text-blue-400",     border: "border-blue-500/20",     status: "assigned" },
-    { label: "Interviewed", value: counts.interviewed, color: "text-green-400",    border: "border-green-500/20",    status: "interviewed" },
-    { label: "Cleared",     value: counts.cleared,     color: "text-emerald-400",  border: "border-emerald-500/20",  status: "cleared" },
-    { label: "Rejected",    value: counts.rejected,    color: "text-red-400",      border: "border-red-500/20",      status: "rejected" },
+    { key: "total",       label: "Total",             value: counts.total,       color: "text-white",        border: "border-white/10" },
+    { key: "pending",     label: "Pending",            value: counts.pending,     color: "text-yellow-400",   border: "border-yellow-500/20" },
+    { key: "assigned",    label: "Assigned",           value: counts.assigned,    color: "text-blue-400",     border: "border-blue-500/20" },
+    { key: "interviewed", label: "Interviewed",        value: counts.interviewed, color: "text-green-400",    border: "border-green-500/20" },
+    { key: "cleared",     label: "Cleared",            value: counts.cleared,     color: "text-emerald-400",  border: "border-emerald-500/20" },
+    { key: "rejected",    label: "Rejected",           value: counts.rejected,    color: "text-red-400",      border: "border-red-500/20" },
+    { key: "recruitment", label: "Recruitment Day ✓",  value: counts.recruitment, color: "text-purple-400",   border: "border-purple-500/20" },
   ];
+
+  // Compute the inline list for the selected tile
+  const selectedTileInfo = tiles.find(t => t.key === selectedTile);
+  const filteredApplicants = selectedTile === "recruitment"
+    ? (() => {
+        const yesIds = new Set(interviews.filter(i => i.recruitmentDayAttendance === "yes").map(i => i.applicationId));
+        return applications.filter(a => yesIds.has(a.id));
+      })()
+    : selectedTile === "total"
+    ? applications
+    : applications.filter(a => a.status === selectedTile);
 
   return (
     <div className="space-y-8">
@@ -237,19 +268,73 @@ function ManagerDashboard() {
       {loading ? (
         <div className="text-center text-white/30 text-sm py-20">Loading...</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          {tiles.map(tile => (
-            <button
-              key={tile.label}
-              onClick={() => navigate(tile.status === "all" ? "/applicants" : `/applicants?status=${tile.status}`)}
-              className={`bg-gray-900 border ${tile.border} hover:border-opacity-60 hover:bg-gray-800 rounded-2xl p-6 text-left transition group`}
-            >
-              <p className="text-white/50 text-xs font-medium uppercase tracking-widest mb-3">{tile.label}</p>
-              <p className={`text-5xl font-bold ${tile.color}`}>{tile.value}</p>
-              <p className="text-white/20 text-xs mt-4 group-hover:text-white/40 transition">View list →</p>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {tiles.map(tile => (
+              <button
+                key={tile.key}
+                onClick={() => setSelectedTile(selectedTile === tile.key ? null : tile.key)}
+                className={`bg-gray-900 border ${tile.border} rounded-2xl p-5 text-left transition group ${
+                  selectedTile === tile.key ? "ring-2 ring-white/20" : "hover:border-opacity-60 hover:bg-gray-800"
+                }`}
+              >
+                <p className="text-white/50 text-xs font-medium uppercase tracking-widest mb-2">{tile.label}</p>
+                <p className={`text-4xl font-bold ${tile.color}`}>{tile.value}</p>
+                <p className={`text-xs mt-3 transition ${selectedTile === tile.key ? "text-white/60" : "text-white/20 group-hover:text-white/40"}`}>
+                  {selectedTile === tile.key ? "Click to collapse ↑" : "View list →"}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          {/* Inline applicant list */}
+          {selectedTile && (
+            <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <p className="text-white font-semibold">{selectedTileInfo?.label}</p>
+                  <p className="text-white/40 text-xs mt-0.5">{filteredApplicants.length} applicant{filteredApplicants.length !== 1 ? "s" : ""}</p>
+                </div>
+                <button
+                  onClick={() => setSelectedTile(null)}
+                  className="p-1.5 text-white/30 hover:text-white hover:bg-white/5 rounded-lg transition"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {filteredApplicants.length === 0 ? (
+                <div className="text-center text-white/30 text-sm py-10">No applicants in this category</div>
+              ) : (
+                <div className="divide-y divide-white/5 max-h-[480px] overflow-y-auto">
+                  {filteredApplicants.map(app => (
+                    <button
+                      key={app.id}
+                      onClick={() => navigate(`/applicants?highlight=${app.id}`)}
+                      className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition text-left group"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600/20 flex items-center justify-center shrink-0">
+                          <span className="text-blue-400 text-sm font-semibold">{app.name.charAt(0).toUpperCase()}</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{app.name}</p>
+                          <p className="text-white/40 text-xs truncate">{app.phone}{app.city ? ` · ${app.city}` : ""}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${statusBadgeColors[app.status] || statusBadgeColors.pending}`}>
+                          {statusConfig[app.status]?.label || app.status}
+                        </span>
+                        <ChevronRight size={14} className="text-white/20 group-hover:text-white/40 transition" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

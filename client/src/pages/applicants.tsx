@@ -159,7 +159,7 @@ export default function ApplicantsPage() {
           <div className={`flex flex-col ${selected ? "hidden lg:flex w-96 shrink-0" : "flex-1"}`}>
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-white text-xl font-semibold">Applicants</h1>
-              {user?.role === "admin" && (
+              {(user?.role === "admin" || user?.role === "core_team") && (
                 <button
                   onClick={() => setShowAddForm(true)}
                   className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-xl transition"

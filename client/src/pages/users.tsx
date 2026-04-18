@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { RequireAdminAuth } from "@/lib/auth";
 import AdminLayout from "./layout";
-import { Plus, Trash2, X, UserCircle, KeyRound } from "lucide-react";
+import { Plus, Trash2, X, UserCircle, KeyRound, AtSign } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -38,6 +38,12 @@ export default function UsersPage() {
   const [resetError, setResetError] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
 
+  // Change username state
+  const [usernameTarget, setUsernameTarget] = useState<AdminUser | null>(null);
+  const [newUsername, setNewUsername] = useState("");
+  const [usernameError, setUsernameError] = useState("");
+  const [usernameLoading, setUsernameLoading] = useState(false);
+
   async function reload() {
     const res = await fetch("/api/users", { credentials: "include" });
     setUsers(await res.json());
@@ -73,6 +79,29 @@ export default function UsersPage() {
     if (!confirm(`Remove ${name} from the team?`)) return;
     await fetch(`/api/users/${id}`, { method: "DELETE", credentials: "include" });
     await reload();
+  }
+
+  async function handleChangeUsername(e: React.FormEvent) {
+    e.preventDefault();
+    if (!usernameTarget) return;
+    setUsernameError("");
+    setUsernameLoading(true);
+    try {
+      const res = await fetch(`/api/users/${usernameTarget.id}/username`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ username: newUsername }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message || "Failed");
+      await reload();
+      setUsernameTarget(null);
+      setNewUsername("");
+    } catch (err: any) {
+      setUsernameError(err.message);
+    } finally {
+      setUsernameLoading(false);
+    }
   }
 
   async function handleResetPassword(e: React.FormEvent) {
@@ -151,6 +180,13 @@ export default function UsersPage() {
                             <span className={`text-xs px-2.5 py-1 rounded-full border ${roleBadgeColors[u.role]}`}>
                               {roleLabels[u.role]}
                             </span>
+                            <button
+                              onClick={() => { setUsernameTarget(u); setNewUsername(u.username); setUsernameError(""); }}
+                              className="p-1.5 text-white/30 hover:text-purple-400 hover:bg-purple-500/10 rounded-lg transition"
+                              title="Change username"
+                            >
+                              <AtSign size={14} />
+                            </button>
                             <button
                               onClick={() => { setResetTarget(u); setResetPassword(""); setResetError(""); }}
                               className="p-1.5 text-white/30 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
@@ -231,6 +267,53 @@ export default function UsersPage() {
                     className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium py-2.5 rounded-xl transition"
                   >
                     {formLoading ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* Change Username Modal */}
+        {usernameTarget && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-white font-semibold">Change Username</h3>
+                  <p className="text-white/40 text-xs mt-0.5">For {usernameTarget.name}</p>
+                </div>
+                <button onClick={() => setUsernameTarget(null)} className="text-white/30 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleChangeUsername} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5">New Username *</label>
+                  <input
+                    type="text"
+                    required
+                    minLength={3}
+                    value={newUsername}
+                    onChange={e => setNewUsername(e.target.value)}
+                    placeholder="Min. 3 characters"
+                    className="w-full bg-gray-800 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-purple-500 transition"
+                  />
+                </div>
+                {usernameError && <p className="text-red-400 text-sm">{usernameError}</p>}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setUsernameTarget(null)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 text-sm py-2.5 rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={usernameLoading}
+                    className="flex-1 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 text-white text-sm font-medium py-2.5 rounded-xl transition"
+                  >
+                    {usernameLoading ? "Saving..." : "Change Username"}
                   </button>
                 </div>
               </form>

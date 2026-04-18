@@ -41,7 +41,9 @@ app.use(session({
 // Passport
 passport.use(new LocalStrategy(async (username, password, done) => {
   try {
-    const user = await storage.getAdminUserByUsername(username);
+    // Support login by username OR email
+    const user = await storage.getAdminUserByUsername(username)
+      ?? await storage.getAdminUserByEmail(username);
     if (!user) return done(null, false, { message: "Invalid credentials" });
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return done(null, false, { message: "Invalid credentials" });

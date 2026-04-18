@@ -140,6 +140,14 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
+  app.patch("/api/users/:id/username", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { username } = z.object({ username: z.string().min(3) }).parse(req.body);
+      await storage.updateAdminUserUsername(req.params.id, username);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
   // ── Applications ──────────────────────────────────────────────────────────────
   app.get("/api/applications", requireAuth, async (req, res, next) => {
     try { res.json(await storage.getAllApplications()); } catch (err) { next(err); }
@@ -153,7 +161,7 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
-  app.post("/api/applications", requireAuth, requireRole("admin"), async (req, res, next) => {
+  app.post("/api/applications", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
     try {
       const data = createApplicationSchema.parse(req.body);
       res.status(201).json(await storage.createApplication(data));
@@ -189,6 +197,10 @@ export function registerRoutes(app: Express) {
   });
 
   // ── Interviews ────────────────────────────────────────────────────────────────
+  app.get("/api/interviews", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+    try { res.json(await storage.getAllTeleInterviews()); } catch (err) { next(err); }
+  });
+
   app.get("/api/interviews/:applicationId", requireAuth, async (req, res, next) => {
     try { res.json((await storage.getTeleInterview(req.params.applicationId)) || null); }
     catch (err) { next(err); }
@@ -216,7 +228,7 @@ export function registerRoutes(app: Express) {
   app.get("/api/screeners", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
     try {
       const users = await storage.getAllAdminUsers();
-      res.json(users.filter(u => u.role === "screener").map(({ passwordHash, ...u }) => u));
+      res.json(users.filter(u => u.role === "screener" || u.role === "core_team").map(({ passwordHash, ...u }) => u));
     } catch (err) { next(err); }
   });
 

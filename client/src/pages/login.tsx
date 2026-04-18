@@ -45,7 +45,7 @@ export default function AdminLogin() {
         <div className="bg-gray-900 border border-white/10 rounded-2xl p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-white/60 mb-1.5">Username</label>
+              <label className="block text-sm text-white/60 mb-1.5">Username or Email</label>
               <input
                 type="text"
                 value={username}
@@ -53,7 +53,7 @@ export default function AdminLogin() {
                 required
                 autoFocus
                 className="w-full bg-gray-800 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition"
-                placeholder="Enter your username"
+                placeholder="Enter your username or email"
               />
             </div>
             <div>
