@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { RequireAdminAuth } from "@/lib/auth";
 import AdminLayout from "./layout";
-import { Plus, Trash2, X, UserCircle } from "lucide-react";
+import { Plus, Trash2, X, UserCircle, KeyRound } from "lucide-react";
 
 interface AdminUser {
   id: string;
@@ -31,6 +31,12 @@ export default function UsersPage() {
   const [form, setForm] = useState({ name: "", email: "", username: "", password: "", role: "screener" });
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+
+  // Reset password state
+  const [resetTarget, setResetTarget] = useState<AdminUser | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
   async function reload() {
     const res = await fetch("/api/users", { credentials: "include" });
@@ -67,6 +73,28 @@ export default function UsersPage() {
     if (!confirm(`Remove ${name} from the team?`)) return;
     await fetch(`/api/users/${id}`, { method: "DELETE", credentials: "include" });
     await reload();
+  }
+
+  async function handleResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetTarget) return;
+    setResetError("");
+    setResetLoading(true);
+    try {
+      const res = await fetch(`/api/users/${resetTarget.id}/password`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password: resetPassword }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message || "Failed");
+      setResetTarget(null);
+      setResetPassword("");
+    } catch (err: any) {
+      setResetError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
   }
 
   const grouped = {
@@ -119,13 +147,21 @@ export default function UsersPage() {
                               <p className="text-white/40 text-xs">@{u.username} · {u.email}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
                             <span className={`text-xs px-2.5 py-1 rounded-full border ${roleBadgeColors[u.role]}`}>
                               {roleLabels[u.role]}
                             </span>
                             <button
+                              onClick={() => { setResetTarget(u); setResetPassword(""); setResetError(""); }}
+                              className="p-1.5 text-white/30 hover:text-blue-400 hover:bg-blue-500/10 rounded-lg transition"
+                              title="Reset password"
+                            >
+                              <KeyRound size={14} />
+                            </button>
+                            <button
                               onClick={() => handleDelete(u.id, u.name)}
                               className="p-1.5 text-red-400/40 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition"
+                              title="Remove user"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -195,6 +231,53 @@ export default function UsersPage() {
                     className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium py-2.5 rounded-xl transition"
                   >
                     {formLoading ? "Adding..." : "Add"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {/* Reset Password Modal */}
+        {resetTarget && (
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm p-6">
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h3 className="text-white font-semibold">Reset Password</h3>
+                  <p className="text-white/40 text-xs mt-0.5">For {resetTarget.name} (@{resetTarget.username})</p>
+                </div>
+                <button onClick={() => setResetTarget(null)} className="text-white/30 hover:text-white">
+                  <X size={18} />
+                </button>
+              </div>
+              <form onSubmit={handleResetPassword} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-white/50 mb-1.5">New Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={resetPassword}
+                    onChange={e => setResetPassword(e.target.value)}
+                    placeholder="Min. 6 characters"
+                    className="w-full bg-gray-800 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500 transition"
+                  />
+                </div>
+                {resetError && <p className="text-red-400 text-sm">{resetError}</p>}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setResetTarget(null)}
+                    className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 text-sm py-2.5 rounded-xl transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium py-2.5 rounded-xl transition"
+                  >
+                    {resetLoading ? "Saving..." : "Reset Password"}
                   </button>
                 </div>
               </form>

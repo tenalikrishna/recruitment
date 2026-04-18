@@ -164,8 +164,6 @@ function ManagerDashboard() {
   const [, navigate] = useLocation();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
 
@@ -208,25 +206,24 @@ function ManagerDashboard() {
     rejected: applications.filter(a => a.status === "rejected").length,
   };
 
-  const filtered = applications.filter(a => {
-    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) ||
-      a.phone.includes(search);
-    const matchStatus = filterStatus === "all" || a.status === filterStatus;
-    return matchSearch && matchStatus;
-  });
+  const tiles = [
+    { label: "Total",       value: counts.total,       color: "text-white",        border: "border-white/10",        status: "all" },
+    { label: "Pending",     value: counts.pending,     color: "text-yellow-400",   border: "border-yellow-500/20",   status: "pending" },
+    { label: "Assigned",    value: counts.assigned,    color: "text-blue-400",     border: "border-blue-500/20",     status: "assigned" },
+    { label: "Interviewed", value: counts.interviewed, color: "text-green-400",    border: "border-green-500/20",    status: "interviewed" },
+    { label: "Cleared",     value: counts.cleared,     color: "text-emerald-400",  border: "border-emerald-500/20",  status: "cleared" },
+    { label: "Rejected",    value: counts.rejected,    color: "text-red-400",      border: "border-red-500/20",      status: "rejected" },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-white text-xl font-semibold">Applicants</h1>
-          <p className="text-white/40 text-sm mt-0.5">All incoming applications</p>
+          <h1 className="text-white text-xl font-semibold">Dashboard</h1>
+          <p className="text-white/40 text-sm mt-0.5">Click a tile to view applicants</p>
         </div>
         <div className="flex items-center gap-3">
-          {syncMsg && (
-            <span className="text-sm text-green-400">{syncMsg}</span>
-          )}
+          {syncMsg && <span className="text-sm text-green-400">{syncMsg}</span>}
           <button
             onClick={handleSync}
             disabled={syncing}
@@ -234,115 +231,30 @@ function ManagerDashboard() {
           >
             {syncing ? "Syncing…" : "Sync from Website"}
           </button>
-          <button
-            onClick={() => navigate("/applicants")}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-4 py-2 rounded-xl transition"
-          >
-            Manage
-          </button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: "Total", value: counts.total, color: "text-white" },
-          { label: "Pending", value: counts.pending, color: "text-yellow-400" },
-          { label: "Assigned", value: counts.assigned, color: "text-blue-400" },
-          { label: "Interviewed", value: counts.interviewed, color: "text-green-400" },
-          { label: "Rejected", value: counts.rejected, color: "text-red-400" },
-        ].map(s => (
-          <div key={s.label} className="bg-gray-900 border border-white/10 rounded-2xl p-4">
-            <p className="text-white/40 text-xs uppercase tracking-wide">{s.label}</p>
-            <p className={`text-2xl font-bold mt-1 ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <input
-          type="text"
-          placeholder="Search name, email, phone..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 bg-gray-900 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/20 focus:outline-none focus:border-blue-500 transition"
-        />
-        <select
-          value={filterStatus}
-          onChange={e => setFilterStatus(e.target.value)}
-          className="bg-gray-900 border border-white/10 rounded-xl px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 transition"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="assigned">Assigned</option>
-          <option value="interviewed">Interviewed</option>
-          <option value="cleared">Cleared</option>
-          <option value="rejected">Rejected</option>
-        </select>
-      </div>
-
-      {/* Table */}
       {loading ? (
-        <div className="text-center text-white/30 text-sm py-16">Loading...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center text-white/30 text-sm py-16">No applicants found</div>
+        <div className="text-center text-white/30 text-sm py-20">Loading...</div>
       ) : (
-        <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left text-white/40 font-medium px-4 py-3">Name</th>
-                  <th className="text-left text-white/40 font-medium px-4 py-3">Phone</th>
-                  <th className="text-left text-white/40 font-medium px-4 py-3 hidden sm:table-cell">City</th>
-                  <th className="text-left text-white/40 font-medium px-4 py-3">Status</th>
-                  <th className="text-left text-white/40 font-medium px-4 py-3 hidden md:table-cell">Applied</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((app, i) => {
-                  const cfg = statusConfig[app.status] || statusConfig.pending;
-                  const Icon = cfg.icon;
-                  return (
-                    <tr
-                      key={app.id}
-                      onClick={() => navigate(`/applicants?id=${app.id}`)}
-                      className={`border-b border-white/5 hover:bg-white/3 cursor-pointer transition ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-blue-600/20 flex items-center justify-center shrink-0">
-                            <span className="text-blue-400 text-xs font-semibold">{app.name.charAt(0).toUpperCase()}</span>
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">{app.name}</p>
-                            <p className="text-white/30 text-xs">{app.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-white/70">{app.phone}</td>
-                      <td className="px-4 py-3 text-white/50 hidden sm:table-cell">{app.city || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border ${cfg.color}`}>
-                          <Icon size={11} />
-                          {cfg.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-white/30 text-xs hidden md:table-cell">
-                        {new Date(app.createdAt).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {tiles.map(tile => (
+            <button
+              key={tile.label}
+              onClick={() => navigate(tile.status === "all" ? "/applicants" : `/applicants?status=${tile.status}`)}
+              className={`bg-gray-900 border ${tile.border} hover:border-opacity-60 hover:bg-gray-800 rounded-2xl p-6 text-left transition group`}
+            >
+              <p className="text-white/50 text-xs font-medium uppercase tracking-widest mb-3">{tile.label}</p>
+              <p className={`text-5xl font-bold ${tile.color}`}>{tile.value}</p>
+              <p className="text-white/20 text-xs mt-4 group-hover:text-white/40 transition">View list →</p>
+            </button>
+          ))}
         </div>
       )}
     </div>
   );
 }
+
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 

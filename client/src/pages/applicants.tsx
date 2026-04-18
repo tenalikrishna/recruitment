@@ -53,7 +53,11 @@ export default function ApplicantsPage() {
   const [selected, setSelected] = useState<Application | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
+  // Pre-filter by ?status= query param from dashboard tile clicks
+  const initialStatus = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.hash.split("?")[1] || "").get("status") || "all"
+    : "all";
+  const [filterStatus, setFilterStatus] = useState(initialStatus);
 
   // Add form state
   const [form, setForm] = useState({ name: "", email: "", phone: "", city: "", programInterest: "", notes: "" });
