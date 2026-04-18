@@ -159,7 +159,7 @@ export default function ApplicantsPage() {
           <div className={`flex flex-col ${selected ? "hidden lg:flex w-96 shrink-0" : "flex-1"}`}>
             <div className="flex items-center justify-between mb-4">
               <h1 className="text-white text-xl font-semibold">Applicants</h1>
-              {(user?.role === "admin" || user?.role === "core_team") && (
+              {user?.role === "admin" && (
                 <button
                   onClick={() => setShowAddForm(true)}
                   className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-xl transition"
@@ -312,51 +312,53 @@ export default function ApplicantsPage() {
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Screener Assignment</p>
                 {(() => {
                   const asg = getAssignment(selected.id);
-                  if (asg) {
-                    return (
-                      <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
-                        <div>
-                          <p className="text-white/70 text-sm">Assigned to <span className="text-white font-medium">{getScreenerName(asg.screenerId)}</span></p>
-                          <p className={`text-xs mt-0.5 ${asg.status === "completed" ? "text-green-400" : "text-yellow-400"}`}>
-                            {asg.status === "completed" ? "Interview completed" : "Pending call"}
-                          </p>
+                  const canAssign = user?.role === "admin" || user?.role === "core_team";
+                  return (
+                    <div className="space-y-3">
+                      {asg && (
+                        <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3">
+                          <div>
+                            <p className="text-white/70 text-sm">Assigned to <span className="text-white font-medium">{getScreenerName(asg.screenerId)}</span></p>
+                            <p className={`text-xs mt-0.5 ${asg.status === "completed" ? "text-green-400" : "text-yellow-400"}`}>
+                              {asg.status === "completed" ? "Interview completed" : "Pending call"}
+                            </p>
+                          </div>
+                          {asg.status === "completed" && (
+                            <button
+                              onClick={() => navigate(`/interview/${selected.id}`)}
+                              className="text-blue-400 text-sm hover:underline"
+                            >
+                              View results →
+                            </button>
+                          )}
                         </div>
-                        {asg.status === "completed" && (
-                          <button
-                            onClick={() => navigate(`/interview/${selected.id}`)}
-                            className="text-blue-400 text-sm hover:underline"
+                      )}
+                      {canAssign ? (
+                        <div className="flex gap-2">
+                          <select
+                            value={assignScreenerId}
+                            onChange={e => setAssignScreenerId(e.target.value)}
+                            className="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
                           >
-                            View results →
+                            <option value="">{asg ? "Reassign to..." : "Select screener..."}</option>
+                            {screeners.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => handleAssign(selected.id)}
+                            disabled={!assignScreenerId || assigning}
+                            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm px-3 py-2 rounded-xl transition"
+                          >
+                            <UserPlus size={15} />
+                            {assigning ? "..." : asg ? "Reassign" : "Assign"}
                           </button>
-                        )}
-                      </div>
-                    );
-                  }
-                  if (user?.role === "admin" || user?.role === "core_team") {
-                    return (
-                      <div className="flex gap-2">
-                        <select
-                          value={assignScreenerId}
-                          onChange={e => setAssignScreenerId(e.target.value)}
-                          className="flex-1 bg-gray-800 border border-white/10 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500 transition"
-                        >
-                          <option value="">Select screener...</option>
-                          {screeners.map(s => (
-                            <option key={s.id} value={s.id}>{s.name}</option>
-                          ))}
-                        </select>
-                        <button
-                          onClick={() => handleAssign(selected.id)}
-                          disabled={!assignScreenerId || assigning}
-                          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm px-3 py-2 rounded-xl transition"
-                        >
-                          <UserPlus size={15} />
-                          {assigning ? "..." : "Assign"}
-                        </button>
-                      </div>
-                    );
-                  }
-                  return <p className="text-white/30 text-sm">Not yet assigned</p>;
+                        </div>
+                      ) : !asg ? (
+                        <p className="text-white/30 text-sm">Not yet assigned</p>
+                      ) : null}
+                    </div>
+                  );
                 })()}
               </div>
             </div>

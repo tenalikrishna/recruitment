@@ -45,16 +45,21 @@ const interviewSchema = z.object({
   basicIntro: z.string().optional(),
   basicIntroOther: z.string().optional(),
   basicIntroNotes: z.string().optional(),
+  currentRole: z.string().optional(),
+  experienceWithChildren: z.string().optional(),
+  ongoingCommitments: z.string().optional(),
   sourceOfApplication: z.string().optional(),
   sourceOther: z.string().optional(),
   intentToApply: z.string().optional(),
   intentComment: z.string().optional(),
   candidateAligned: z.boolean().optional(),
+  candidateUnderstanding: z.string().optional(),
   currentLocation: z.string().optional(),
   locationOther: z.string().optional(),
   openToOnGround: z.boolean().optional(),
   onlyOnline: z.boolean().optional(),
   willingToTravel: z.boolean().optional(),
+  weeklyHoursAvailable: z.string().optional(),
   confirmsWeeklyCommitment: z.string().optional(),
   availabilityWeekdays: z.boolean().optional(),
   availabilityWeekends: z.boolean().optional(),
@@ -67,13 +72,18 @@ const interviewSchema = z.object({
   areaComment: z.string().optional(),
   comfortableVisitingSchools: z.boolean().optional(),
   comfortableVisitingCCIs: z.boolean().optional(),
+  valuesNoted: z.string().optional(),
+  reliabilitySignal: z.string().optional(),
   commitmentDuration: z.string().optional(),
+  selectedPrograms: z.string().optional(),
+  subjectExpertise: z.string().optional(),
   recruitmentDayAttendance: z.string().optional(),
   agreesToBeActive: z.string().optional(),
   comfortableSharingContent: z.boolean().optional(),
   hasLongTermCommitment: z.boolean().optional(),
   reliabilityExample: z.string().optional(),
   finalConfirmation: z.string().optional(),
+  finalPartialNotes: z.string().optional(),
   decision: z.string().optional(),
   finalNotes: z.string().optional(),
 });
@@ -161,7 +171,7 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
-  app.post("/api/applications", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+  app.post("/api/applications", requireAuth, requireRole("admin"), async (req, res, next) => {
     try {
       const data = createApplicationSchema.parse(req.body);
       res.status(201).json(await storage.createApplication(data));
