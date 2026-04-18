@@ -105,8 +105,8 @@ const VIZ_AREAS = [
   "Railway New Colony, Central", "Kanchalerpalem, South",
 ];
 const PROGRAMS = [
-  "1. Education Dev (Online Maths & Science)",
-  "2. Social-Emotional Learning (On-ground, Vizag)",
+  "1. Education Development (Maths & Science)",
+  "2. Social-Emotional Learning (Vizag)",
   "3. Digital Literacy & AI",
   "4. Health & Nutrition",
   "5. Library Project",
@@ -504,7 +504,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       {/* 03. HUManity Pitch */}
       <Section num="03" label="PURPOSE SETTING — HUMANITY PITCH">
         <ScriptBox>
-          "Let me quickly tell you what HUManity does so we're on the same page. HUManity Foundation works with children living in Child Care Institutions — homes and shelters across Hyderabad and Visakhapatnam. We run five programs: online academic classes in Maths and Science for Grades 8 to 10, Social-Emotional Learning sessions on weekends, a Digital Literacy and AI course, monthly health check-ups, and a Library Project in collaboration with Pratham Books. Volunteers typically commit 2 to 5 hours a week over at least 3 to 6 months. There is also a mandatory full-day Recruitment Day happening in the third or fourth week of May, which is compulsory for all selected volunteers. Does that sound like something you can commit to?"
+          "Let me quickly tell you what HUManity does so we're on the same page. HUManity Foundation works with children living in Child Care Institutions — homes and shelters across Hyderabad and Visakhapatnam. We run five programs: academic classes in Maths and Science for Grades 8 to 10, Social-Emotional Learning sessions, a Digital Literacy and AI course, monthly health check-ups, and a Library Project in collaboration with Pratham Books. All sessions happen over weekends or weekday evenings, each session lasting 2 to 2.5 hours. Volunteers choose one, two, or three on-ground visit slots based on their availability over at least 3 to 6 months. There is also a mandatory full-day Recruitment Day happening in the third or fourth week of May, which is compulsory for all selected volunteers. Does that sound like something you can commit to?"
         </ScriptBox>
 
         <CheckItem
@@ -540,8 +540,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
         <Field label="Volunteering Mode Preference" badge={<Badge type="req">REQUIRED</Badge>}>
           <div className="space-y-2">
             <CheckItem label="Open to On-ground" checked={form.openToOnGround} onChange={v => set("openToOnGround", v)} />
-            <CheckItem label="Only Online" checked={form.onlyOnline} onChange={v => set("onlyOnline", v)} />
-            <CheckItem label="Willing to Travel" checked={form.willingToTravel} onChange={v => set("willingToTravel", v)} />
+            <CheckItem label="Only Online (record response)" checked={form.onlyOnline} onChange={v => set("onlyOnline", v)} />
           </div>
         </Field>
       </Section>
@@ -549,26 +548,25 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       {/* 05. Time Commitment */}
       <Section num="05" label="TIME COMMITMENT">
         <ScriptBox>
-          "Our online classes run daily between 6 and 9 PM — volunteers pick one, two, or three days per week. On-ground programs are on weekends, usually Sunday mornings. How many hours a week can you realistically give over the next 3 to 6 months?"
+          "All our sessions happen over weekends or weekday evenings, each session lasting 2 to 2.5 hours. You can choose one, two, or three on-ground visit slots based on your availability. How many slots per week can you realistically commit to over the next 3 to 6 months?"
         </ScriptBox>
 
-        <Field label="Weekly Hours Available" badge={<Badge type="req">REQUIRED</Badge>}>
+        <Field label="On-ground Visit Slots Per Week" badge={<Badge type="req">REQUIRED</Badge>}>
           <Tags
             options={[
-              { value: "less_than_2", label: "Less than 2 hrs" },
-              { value: "2_to_3", label: "2–3 hrs" },
-              { value: "3_to_5", label: "3–5 hrs" },
-              { value: "5_plus", label: "5+ hrs" },
+              { value: "one_slot", label: "1 slot / week" },
+              { value: "two_slots", label: "2 slots / week" },
+              { value: "three_slots", label: "3 slots / week" },
             ]}
             value={form.weeklyHoursAvailable}
             onChange={v => set("weeklyHoursAvailable", v as string)}
           />
         </Field>
 
-        <Field label="Weekly Commitment Confidence">
+        <Field label="Commitment Confidence">
           <Tags
             options={[
-              { value: "confirmed", label: "Confirms weekly commitment" },
+              { value: "confirmed", label: "Confirms commitment" },
               { value: "not_sure", label: "Not sure ⚠️" },
             ]}
             value={form.confirmsWeeklyCommitment}
@@ -579,16 +577,8 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
 
         <Field label="Availability — Days">
           <div className="space-y-2">
-            <CheckItem label="Weekdays" checked={form.availabilityWeekdays} onChange={v => set("availabilityWeekdays", v)} />
+            <CheckItem label="Weekdays (evenings)" checked={form.availabilityWeekdays} onChange={v => set("availabilityWeekdays", v)} />
             <CheckItem label="Weekends" checked={form.availabilityWeekends} onChange={v => set("availabilityWeekends", v)} />
-          </div>
-        </Field>
-
-        <Field label="Availability — Time Slots">
-          <div className="space-y-2">
-            <CheckItem label="Morning" checked={form.availabilityMorning} onChange={v => set("availabilityMorning", v)} />
-            <CheckItem label="Afternoon" checked={form.availabilityAfternoon} onChange={v => set("availabilityAfternoon", v)} />
-            <CheckItem label="Evening (6–9 PM)" checked={form.availabilityEvening} onChange={v => set("availabilityEvening", v)} />
           </div>
         </Field>
       </Section>
@@ -699,7 +689,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       {/* 09. Program Interest */}
       <Section num="09" label="PROGRAM INTEREST">
         <ScriptBox>
-          "We have five programs. I'll quickly name them — tell me which ones excite you most. One: Education Development — online Maths and Science classes for Grades 8 to 10, evenings daily. Two: Social-Emotional Learning — bi-weekly on-ground sessions on Sundays in Vizag. Three: Digital Literacy and AI — a 4-month weekly on-ground certification course. Four: Health and Nutrition — monthly health check-ups. Five: Library Project — weekly reading visits with Pratham Books. Which of these feels closest to what you want to do?"
+          "We have five programs. I'll quickly name them — tell me which ones excite you most. One: Education Development — Maths and Science classes for Grades 8 to 10. Two: Social-Emotional Learning — sessions in Vizag. Three: Digital Literacy and AI — a 4-month on-ground certification course. Four: Health and Nutrition — monthly health check-ups. Five: Library Project — weekly reading visits with Pratham Books. All sessions are on weekends or weekday evenings, 2 to 2.5 hours each. Which of these feels closest to what you want to do?"
         </ScriptBox>
 
         <Field label="Program Priority (select up to 3 in order)">
