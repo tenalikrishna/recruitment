@@ -307,7 +307,7 @@ function ManagerDashboard() {
                   return (
                     <tr
                       key={app.id}
-                      onClick={() => navigate(`/admin/applicants?id=${app.id}`)}
+                      onClick={() => navigate(`/applicants?id=${app.id}`)}
                       className={`border-b border-white/5 hover:bg-white/3 cursor-pointer transition ${i % 2 === 0 ? "" : "bg-white/[0.02]"}`}
                     >
                       <td className="px-4 py-3">

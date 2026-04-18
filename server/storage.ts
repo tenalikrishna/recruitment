@@ -114,11 +114,16 @@ export async function getTeleInterview(applicationId: string): Promise<TeleInter
   return result[0];
 }
 
+function decisionToStatus(decision?: string | null): string {
+  if (decision === "reject") return "rejected";
+  if (decision === "strong" || decision === "maybe") return "cleared";
+  return "interviewed";
+}
+
 export async function createTeleInterview(data: Omit<InsertTeleInterview, "id">): Promise<TeleInterview> {
   const id = crypto.randomUUID();
   await db.insert(teleInterviews).values({ ...data, id });
-  // Update application & assignment status
-  await updateApplicationStatus(data.applicationId, "interviewed");
+  await updateApplicationStatus(data.applicationId, decisionToStatus(data.decision));
   const assignment = await getAssignmentByApplication(data.applicationId);
   if (assignment) await updateAssignmentStatus(assignment.id, "completed");
   const result = await db.select().from(teleInterviews).where(eq(teleInterviews.id, id));
@@ -127,6 +132,10 @@ export async function createTeleInterview(data: Omit<InsertTeleInterview, "id">)
 
 export async function updateTeleInterview(id: string, data: Partial<InsertTeleInterview>): Promise<void> {
   await db.update(teleInterviews).set(data).where(eq(teleInterviews.id, id));
+  // Sync application status whenever decision changes
+  if (data.applicationId && data.decision !== undefined) {
+    await updateApplicationStatus(data.applicationId, decisionToStatus(data.decision));
+  }
 }
 
 // ─── Export grouped for server/index.ts ──────────────────────────────────────
