@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { useLocation, Link } from "wouter";
 import { useAdminAuth, hasRole, roleLabel } from "@/lib/auth";
 import {
-  Users, ClipboardList, UserCog, LogOut, LayoutDashboard, Menu, X
+  ClipboardList, UserCog, LogOut, LayoutDashboard, Menu, X, Network
 } from "lucide-react";
 import { useState } from "react";
 
@@ -14,9 +14,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Dashboard", href: "/dashboard", icon: <LayoutDashboard size={18} />, roles: ["admin", "core_team", "screener"] },
-  { label: "Applicants", href: "/applicants", icon: <ClipboardList size={18} />, roles: ["admin", "core_team"] },
-  { label: "Team", href: "/users", icon: <UserCog size={18} />, roles: ["admin"] },
+  { label: "Dashboard", href: "/dashboard",  icon: <LayoutDashboard size={18} />, roles: ["admin", "cluster_leader", "screener"] },
+  { label: "Applicants", href: "/applicants", icon: <ClipboardList size={18} />,  roles: ["admin", "screener"] },
+  { label: "Clusters",   href: "/clusters",   icon: <Network size={18} />,         roles: ["admin", "cluster_leader"] },
+  { label: "Team",       href: "/users",      icon: <UserCog size={18} />,         roles: ["admin"] },
 ];
 
 

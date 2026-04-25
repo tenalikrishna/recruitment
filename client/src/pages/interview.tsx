@@ -286,7 +286,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
         const progs = ivData.selectedPrograms ? JSON.parse(ivData.selectedPrograms) : [];
         const subj  = ivData.subjectExpertise ? JSON.parse(ivData.subjectExpertise) : [];
         setForm({ ...defaultForm, ...ivData, selectedAreas: areas, selectedPrograms: progs, subjectExpertise: subj });
-        if (hasRole(user, "screener") && !hasRole(user, "admin", "core_team") && appData.status === "interviewed") setReadOnly(true);
+        if (hasRole(user, "screener") && !hasRole(user, "admin", "cluster_leader") && appData.status === "interviewed") setReadOnly(true);
       }
       setLoading(false);
     }

@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useLocation } from "wouter";
 
-export type AdminRole = "admin" | "core_team" | "screener";
+export type AdminRole = "admin" | "cluster_leader" | "screener";
 
 export interface AdminUser {
   id: string;
@@ -29,7 +29,7 @@ export function hasRole(user: { role: string } | null | undefined, ...roles: str
 export function roleLabel(role: string | undefined | null): string {
   const labels: Record<string, string> = {
     admin: "Leadership",
-    core_team: "Core Team",
+    cluster_leader: "Cluster Leader",
     screener: "Screener",
   };
   return parseRoles(role).map(r => labels[r] || r).join(" · ");

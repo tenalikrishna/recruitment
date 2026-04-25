@@ -118,7 +118,7 @@ export function registerRoutes(app: Express) {
   });
 
   // ── Users ─────────────────────────────────────────────────────────────────────
-  app.get("/api/users", requireAuth, requireRole("admin"), async (req, res, next) => {
+  app.get("/api/users", requireAuth, requireRole("admin"), async (_req, res, next) => {
     try {
       const users = await storage.getAllAdminUsers();
       res.json(users.map(({ passwordHash, ...u }) => u));
@@ -167,8 +167,16 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
+  app.patch("/api/users/:id/profile", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const data = z.object({ name: z.string().min(2), email: z.string().email(), username: z.string().min(3) }).parse(req.body);
+      await storage.updateAdminUserProfile(req.params.id, data);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
   // ── Applications ──────────────────────────────────────────────────────────────
-  app.get("/api/applications", requireAuth, async (req, res, next) => {
+  app.get("/api/applications", requireAuth, async (_req, res, next) => {
     try { res.json(await storage.getAllApplications()); } catch (err) { next(err); }
   });
 
@@ -205,7 +213,7 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
-  app.post("/api/assignments", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+  app.post("/api/assignments", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
     try {
       const data = assignSchema.parse(req.body);
       const user = req.user as any;
@@ -216,7 +224,7 @@ export function registerRoutes(app: Express) {
   });
 
   // ── Interviews ────────────────────────────────────────────────────────────────
-  app.get("/api/interviews", requireAuth, async (req, res, next) => {
+  app.get("/api/interviews", requireAuth, async (_req, res, next) => {
     try { res.json(await storage.getAllTeleInterviews()); } catch (err) { next(err); }
   });
 
@@ -243,16 +251,26 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
+  // ── Leader → Cluster map (for Team page) ─────────────────────────────────────
+  app.get("/api/leader-cluster-map", requireAuth, requireRole("admin"), async (_req, res, next) => {
+    try {
+      const map = await storage.getLeaderClusterMap();
+      res.json(Object.fromEntries(map));
+    } catch (err) { next(err); }
+  });
+
   // ── Screeners list ────────────────────────────────────────────────────────────
-  app.get("/api/screeners", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+  app.get("/api/screeners", requireAuth, requireRole("admin", "cluster_leader"), async (_req, res, next) => {
     try {
       const users = await storage.getAllAdminUsers();
-      res.json(users.filter(u => u.role === "screener" || u.role === "core_team").map(({ passwordHash, ...u }) => u));
+      const hasRole = (role: string, ...check: string[]) =>
+        role.split(",").map(r => r.trim()).some(r => check.includes(r));
+      res.json(users.filter(u => hasRole(u.role, "screener", "cluster_leader")).map(({ passwordHash, ...u }) => u));
     } catch (err) { next(err); }
   });
 
   // ── Sync from Hostinger ───────────────────────────────────────────────────────
-  app.post("/api/sync", requireAuth, requireRole("admin", "core_team"), async (req, res, next) => {
+  app.post("/api/sync", requireAuth, requireRole("admin", "cluster_leader"), async (_req, res, next) => {
     try {
       const syncSecret = process.env.HOSTINGER_SYNC_SECRET || "hum_sync_7x4k9mQ2pRvL8wZnJdYe";
       const response = await fetch(`https://humanityorg.foundation/backend/api/sync.php?secret=${syncSecret}`);
@@ -279,6 +297,142 @@ export function registerRoutes(app: Express) {
         inserted++;
       }
       res.json({ ok: true, inserted, total: payload.count });
+    } catch (err) { next(err); }
+  });
+
+  // ── Clusters ──────────────────────────────────────────────────────────────────
+  app.get("/api/clusters", requireAuth, requireRole("admin", "cluster_leader"), async (_req, res, next) => {
+    try { res.json(await storage.getAllClusters()); } catch (err) { next(err); }
+  });
+
+  app.get("/api/clusters/:id", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const cluster = await storage.getCluster(req.params.id);
+      if (!cluster) return res.status(404).json({ message: "Not found" });
+      res.json(cluster);
+    } catch (err) { next(err); }
+  });
+
+  app.post("/api/clusters", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const data = z.object({
+        name: z.string().min(1),
+        leaderIds: z.array(z.string()).default([]),
+      }).parse(req.body);
+      res.status(201).json(await storage.createCluster(data));
+    } catch (err) { next(err); }
+  });
+
+  app.patch("/api/clusters/:id/phase", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const { phase } = z.object({ phase: z.enum(["warm_up", "connect", "grow", "ongoing"]) }).parse(req.body);
+      await storage.updateClusterPhase(req.params.id, phase);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  app.patch("/api/clusters/:id/leaders", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { leaderIds } = z.object({ leaderIds: z.array(z.string()) }).parse(req.body);
+      await storage.updateClusterLeaders(req.params.id, leaderIds);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  app.post("/api/clusters/:id/assign", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { applicationId } = z.object({ applicationId: z.string() }).parse(req.body);
+      await storage.assignApplicationToCluster(applicationId, req.params.id);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  // ── Cluster Members ───────────────────────────────────────────────────────────
+  app.get("/api/clusters/:id/members", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try { res.json(await storage.getClusterMembers(req.params.id)); } catch (err) { next(err); }
+  });
+
+  app.patch("/api/clusters/:id/members/:memberId/call", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const data = z.object({
+        callStatus: z.enum(["pending", "scheduled", "completed"]),
+        callScheduledDate: z.string().optional(),
+        screeningNotes: z.string().optional(),
+      }).parse(req.body);
+      await storage.updateMemberCallStatus(req.params.memberId, data);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  app.patch("/api/clusters/:id/members/:memberId/screening", requireAuth, requireRole("admin", "cluster_leader", "screener"), async (req, res, next) => {
+    try {
+      const { decision, notes } = z.object({
+        decision: z.enum(["cleared", "rejected"]),
+        notes: z.string().optional(),
+      }).parse(req.body);
+      const user = req.user as any;
+      await storage.updateMemberScreeningResult(req.params.memberId, user.id, decision, notes);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  app.patch("/api/clusters/:id/members/:memberId/status", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const { clusterStatus } = z.object({
+        clusterStatus: z.enum(["new", "active", "inactive", "dropped"]),
+      }).parse(req.body);
+      await storage.updateMemberClusterStatus(req.params.memberId, clusterStatus);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  // ── Cluster Activities ────────────────────────────────────────────────────────
+  app.get("/api/clusters/:id/activities", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try { res.json(await storage.getClusterActivities(req.params.id)); } catch (err) { next(err); }
+  });
+
+  app.post("/api/clusters/:id/activities", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const data = z.object({
+        name: z.string().min(1),
+        hashtag: z.string().optional(),
+        description: z.string().optional(),
+        date: z.string().min(1),
+        isTemplate: z.boolean().default(false),
+      }).parse(req.body);
+      const user = req.user as any;
+      res.status(201).json(await storage.createClusterActivity({
+        ...data, clusterId: req.params.id, createdById: user.id,
+      }));
+    } catch (err) { next(err); }
+  });
+
+  app.put("/api/clusters/:id/activities/:actId/participation", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const data = z.object({
+        participation: z.array(z.object({ memberId: z.string(), participated: z.boolean() })),
+        rating: z.number().int().min(1).max(5).optional(),
+        notes: z.string().optional(),
+      }).parse(req.body);
+      await storage.saveActivityParticipation(req.params.actId, req.params.id, data);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  // ── Bring Three ───────────────────────────────────────────────────────────────
+  app.get("/api/clusters/:id/bring-three", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try { res.json(await storage.getBringThreeData(req.params.id)); } catch (err) { next(err); }
+  });
+
+  app.post("/api/clusters/:id/bring-three/recruit", requireAuth, requireRole("admin", "cluster_leader"), async (req, res, next) => {
+    try {
+      const data = z.object({
+        referredByMemberId: z.string(),
+        name: z.string().min(1),
+        phone: z.string().min(5),
+        email: z.string().email(),
+      }).parse(req.body);
+      res.status(201).json(await storage.addRecruit({ ...data, referredByClusterId: req.params.id }));
     } catch (err) { next(err); }
   });
 }

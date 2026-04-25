@@ -289,12 +289,12 @@ export default function ApplicantsPage() {
     async function load() {
       await reload();
       const fetches: Promise<void>[] = [];
-      if (!hasRole(user, "screener") || hasRole(user, "admin", "core_team")) {
+      if (!hasRole(user, "screener") || hasRole(user, "admin", "cluster_leader")) {
         fetches.push(
           fetch("/api/screeners", { credentials: "include" }).then(r => r.json()).then(setScreeners)
         );
       }
-      if (hasRole(user, "admin", "core_team")) {
+      if (hasRole(user, "admin", "cluster_leader")) {
         fetches.push(
           fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews)
         );
@@ -389,7 +389,7 @@ export default function ApplicantsPage() {
   }
 
   return (
-    <RequireAdminAuth roles={["admin", "core_team"]}>
+    <RequireAdminAuth roles={["admin", "cluster_leader"]}>
       <AdminLayout>
         <div className="flex h-full gap-6">
 
@@ -593,7 +593,7 @@ export default function ApplicantsPage() {
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Screener Assignment</p>
                 {(() => {
                   const asg = getAssignment(selected.id);
-                  const canAssign = hasRole(user, "admin", "core_team");
+                  const canAssign = hasRole(user, "admin", "cluster_leader");
                   return (
                     <div className="space-y-3">
                       {asg && (
