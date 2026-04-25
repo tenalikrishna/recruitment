@@ -15,6 +15,7 @@ interface Application {
   notes: string | null;
   status: string;
   createdAt: string;
+  applicantNumber: string | null;
 }
 
 interface Screener {
@@ -306,8 +307,12 @@ export default function ApplicantsPage() {
   }, []);
 
   const filtered = applications.filter(a => {
-    const matchSearch = !search || a.name.toLowerCase().includes(search.toLowerCase()) ||
-      a.email.toLowerCase().includes(search.toLowerCase()) || a.phone.includes(search);
+    const q = search.toLowerCase();
+    const matchSearch = !search
+      || a.name.toLowerCase().includes(q)
+      || a.email.toLowerCase().includes(q)
+      || a.phone.includes(search)
+      || (a.applicantNumber && a.applicantNumber.toLowerCase().includes(q));
     const matchStatus = filterStatus === "all" || a.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -498,7 +503,10 @@ export default function ApplicantsPage() {
                           </div>
                           <div className="min-w-0">
                             <p className="text-white text-sm font-medium truncate">{app.name}</p>
-                            <p className="text-white/40 text-xs truncate">{app.phone}</p>
+                            <p className="text-white/40 text-xs truncate">
+                              {app.applicantNumber && <span className="text-blue-400/70 mr-1">{app.applicantNumber}</span>}
+                              {app.phone}
+                            </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -530,9 +538,16 @@ export default function ApplicantsPage() {
                   </div>
                   <div>
                     <h2 className="text-white text-lg font-semibold">{selected.name}</h2>
-                    <span className={`inline-block text-xs px-2.5 py-1 rounded-full border mt-1 ${statusColors[selected.status] || statusColors.pending}`}>
-                      {statusLabels[selected.status] || selected.status}
-                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selected.applicantNumber && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
+                          {selected.applicantNumber}
+                        </span>
+                      )}
+                      <span className={`inline-block text-xs px-2.5 py-0.5 rounded-full border ${statusColors[selected.status] || statusColors.pending}`}>
+                        {statusLabels[selected.status] || selected.status}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

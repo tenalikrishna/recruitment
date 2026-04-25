@@ -12,7 +12,7 @@ import {
 
 interface ClusterMember {
   id: string; name: string; email: string; phone: string;
-  dateAdded: string; activitiesParticipated: number; totalActivities: number;
+  dateAdded: string; activitiesParticipated: number; activitiesTotal: number;
   lastActiveDate: string | null; callStatus: string; callScheduledDate: string | null;
   screeningNotes: string | null; screeningResult: string | null;
   bringThreeCount: number; clusterStatus: string;
@@ -246,7 +246,7 @@ function ActivityRow({ activity, clusterId, onUpdated }: {
             <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div className="h-full bg-blue-500 rounded-full" style={{ width: `${pct}%` }} />
             </div>
-            <span className="text-white/40 text-xs w-14 text-right">{participated}/{total}</span>
+            <span className="text-white/40 text-xs w-20 text-right">{participated}/{total} ({pct}%)</span>
           </div>
           {expanded ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
         </div>
@@ -257,17 +257,22 @@ function ActivityRow({ activity, clusterId, onUpdated }: {
           {activity.description && <p className="text-white/40 text-xs">{activity.description}</p>}
 
           <div>
-            <p className="text-white/50 text-xs mb-2 uppercase tracking-wider">Participation</p>
-            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-white/50 text-xs uppercase tracking-wider">Participation</p>
+              <span className="text-white/60 text-xs font-medium">
+                {participation.filter(p => p.participated).length}/{participation.length} attending
+              </span>
+            </div>
+            <div className={`max-h-60 overflow-y-auto ${participation.length >= 10 ? "grid grid-cols-2 gap-x-3 gap-y-1.5" : "space-y-1.5"}`}>
               {participation.map(p => (
-                <label key={p.memberId} className="flex items-center gap-3 cursor-pointer group">
+                <label key={p.memberId} className="flex items-center gap-2.5 cursor-pointer group">
                   <div
                     onClick={() => toggleMember(p.memberId)}
                     className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition ${p.participated ? "bg-blue-600 border-blue-500" : "bg-gray-800 border-white/20 group-hover:border-white/40"}`}
                   >
                     {p.participated && <span className="text-white text-xs">✓</span>}
                   </div>
-                  <span className="text-white/70 text-sm">{p.memberName}</span>
+                  <span className="text-white/70 text-sm truncate">{p.memberName}</span>
                 </label>
               ))}
             </div>
@@ -529,15 +534,15 @@ function AddMemberModal({ clusterId, onClose, onAdded }: {
 
 // ─── Members Tab ──────────────────────────────────────────────────────────────
 
-function MembersTab({ members, clusterId, isAdmin, onRefresh }: {
-  members: ClusterMember[]; clusterId: string; isAdmin: boolean; onRefresh: () => void;
+function MembersTab({ members, clusterId, isAdmin, canEdit, onRefresh }: {
+  members: ClusterMember[]; clusterId: string; isAdmin: boolean; canEdit: boolean; onRefresh: () => void;
 }) {
   const [logCallFor, setLogCallFor] = useState<ClusterMember | null>(null);
   const [showAddMember, setShowAddMember] = useState(false);
 
   return (
     <div className="space-y-4">
-      {isAdmin && (
+      {canEdit && (
         <div className="flex justify-end">
           <button
             onClick={() => setShowAddMember(true)}
@@ -584,13 +589,17 @@ function MembersTab({ members, clusterId, isAdmin, onRefresh }: {
                     </td>
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-14 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-500 rounded-full"
-                            style={{ width: m.totalActivities > 0 ? `${Math.round(m.activitiesParticipated / m.totalActivities * 100)}%` : "0%" }}
-                          />
-                        </div>
-                        <span className="text-white/40 text-xs">{m.activitiesParticipated}/{m.totalActivities}</span>
+                        {(() => {
+                          const pct = m.activitiesTotal > 0 ? Math.round(m.activitiesParticipated / m.activitiesTotal * 100) : 0;
+                          const color = pct >= 75 ? "text-green-400" : pct >= 50 ? "text-yellow-400" : "text-red-400";
+                          const barColor = pct >= 75 ? "bg-green-500" : pct >= 50 ? "bg-yellow-500" : "bg-red-500";
+                          return (<>
+                            <div className="w-14 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                              <div className={`h-full ${barColor} rounded-full`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <span className={`text-xs ${color}`}>{m.activitiesParticipated}/{m.activitiesTotal} ({pct}%)</span>
+                          </>);
+                        })()}
                       </div>
                     </td>
                     <td className="py-3 px-3 text-white/40 text-xs whitespace-nowrap">
@@ -661,21 +670,23 @@ function MembersTab({ members, clusterId, isAdmin, onRefresh }: {
 
 // ─── Activities Tab ───────────────────────────────────────────────────────────
 
-function ActivitiesTab({ activities, clusterId, onRefresh }: {
-  activities: ClusterActivity[]; clusterId: string; onRefresh: () => void;
+function ActivitiesTab({ activities, clusterId, canEdit, onRefresh }: {
+  activities: ClusterActivity[]; clusterId: string; canEdit: boolean; onRefresh: () => void;
 }) {
   const [showCreate, setShowCreate] = useState(false);
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-xl transition"
-        >
-          <Plus size={14} /> New Activity
-        </button>
-      </div>
+      {canEdit && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium px-3 py-2 rounded-xl transition"
+          >
+            <Plus size={14} /> New Activity
+          </button>
+        </div>
+      )}
 
       {activities.length === 0 ? (
         <div className="text-center text-white/30 text-sm py-16">No activities yet. Create one to start tracking engagement.</div>
@@ -810,6 +821,88 @@ function BringThreeTab({ members, clusterId, onRefresh }: {
   );
 }
 
+// ─── Assign Leader Modal ──────────────────────────────────────────────────────
+
+function AssignLeaderModal({ cluster, allLeaders, leaderClusterMap, onClose, onSaved }: {
+  cluster: ClusterDetail;
+  allLeaders: { id: string; name: string }[];
+  leaderClusterMap: Record<string, string>;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const assignedIds = new Set(cluster.leaders.map(l => l.id));
+
+  async function toggle(leaderId: string) {
+    setSaving(true); setError("");
+    const isAssigned = assignedIds.has(leaderId);
+    try {
+      const res = await fetch(`/api/clusters/${cluster.id}/leaders`, {
+        method: isAssigned ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ leaderId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).message || "Failed");
+      await onSaved();
+    } catch (err: any) { setError(err.message); }
+    finally { setSaving(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+      <div className="bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-white font-semibold">Assign Leaders — {cluster.name}</h3>
+          <button onClick={onClose} className="text-white/30 hover:text-white"><X size={18} /></button>
+        </div>
+
+        {allLeaders.length === 0 ? (
+          <p className="text-white/30 text-sm">No Cluster Leaders found. Add team members with the Cluster Leader role first.</p>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {allLeaders.map(l => {
+              const isAssigned = assignedIds.has(l.id);
+              const otherCluster = !isAssigned && leaderClusterMap[l.id];
+              return (
+                <div key={l.id} className="flex items-center justify-between gap-3 py-2 border-b border-white/5 last:border-0">
+                  <div>
+                    <p className={`text-sm ${otherCluster ? "text-white/30" : "text-white/80"}`}>{l.name}</p>
+                    {otherCluster && (
+                      <p className="text-white/20 text-xs">Assigned to {otherCluster}</p>
+                    )}
+                  </div>
+                  <button
+                    disabled={saving}
+                    onClick={() => toggle(l.id)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition disabled:opacity-40 ${
+                      isAssigned
+                        ? "bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20"
+                        : "bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20"
+                    }`}
+                  >
+                    {isAssigned ? "Remove" : "Assign"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {error && <p className="text-red-400 text-xs mt-3">{error}</p>}
+
+        <button
+          onClick={onClose}
+          className="w-full mt-4 bg-white/5 hover:bg-white/10 text-white/70 text-sm py-2.5 rounded-xl transition"
+        >
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClusterDetailPage() {
@@ -826,18 +919,28 @@ export default function ClusterDetailPage() {
   const [loading, setLoading] = useState(true);
   const [phaseDropdown, setPhaseDropdown] = useState(false);
   const [updatingPhase, setUpdatingPhase] = useState(false);
+  const [showAssignLeader, setShowAssignLeader] = useState(false);
+  const [allLeaders, setAllLeaders] = useState<{ id: string; name: string }[]>([]);
+  const [leaderClusterMap, setLeaderClusterMap] = useState<Record<string, string>>({});
 
   async function loadAll() {
-    const [cRes, mRes, aRes, bRes] = await Promise.all([
+    const [cRes, mRes, aRes, bRes, sRes, lRes] = await Promise.all([
       fetch(`/api/clusters/${clusterId}`, { credentials: "include" }),
       fetch(`/api/clusters/${clusterId}/members`, { credentials: "include" }),
       fetch(`/api/clusters/${clusterId}/activities`, { credentials: "include" }),
       fetch(`/api/clusters/${clusterId}/bring-three`, { credentials: "include" }),
+      fetch("/api/screeners", { credentials: "include" }),
+      fetch("/api/leader-cluster-map", { credentials: "include" }),
     ]);
     if (cRes.ok) setCluster(await cRes.json());
     if (mRes.ok) setMembers(await mRes.json());
     if (aRes.ok) setActivities(await aRes.json());
     if (bRes.ok) setBringThree(await bRes.json());
+    if (sRes.ok) {
+      const screeners: { id: string; name: string; role: string }[] = await sRes.json();
+      setAllLeaders(screeners.filter(s => s.role.split(",").map((r: string) => r.trim()).includes("cluster_leader")));
+    }
+    if (lRes.ok) setLeaderClusterMap(await lRes.json());
     setLoading(false);
   }
 
@@ -877,10 +980,12 @@ export default function ClusterDetailPage() {
   }
 
   const isAdmin = hasRole(user, "admin");
+  const isAssignedLeader = cluster.leaders.some(l => l.id === user?.id);
+  const canEdit = isAdmin || isAssignedLeader;
   const leaderNames = cluster.leaders.map(l => l.name).join(", ") || "No leaders";
   const activeCount = members.filter(m => m.clusterStatus === "active").length;
   const avgParticipation = members.length > 0
-    ? Math.round(members.reduce((s, m) => s + (m.totalActivities > 0 ? m.activitiesParticipated / m.totalActivities : 0), 0) / members.length * 100)
+    ? Math.round(members.reduce((s, m) => s + (m.activitiesTotal > 0 ? m.activitiesParticipated / m.activitiesTotal : 0), 0) / members.length * 100)
     : 0;
 
   return (
@@ -899,33 +1004,50 @@ export default function ClusterDetailPage() {
               </button>
               <div>
                 <h1 className="text-white text-xl font-semibold">{cluster.name}</h1>
-                <p className="text-white/40 text-sm mt-0.5">{leaderNames}</p>
+                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                  <p className="text-white/40 text-sm">{leaderNames}</p>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setShowAssignLeader(true)}
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/20 px-2 py-0.5 rounded-lg transition"
+                    >
+                      <Plus size={10} /> Assign Leader
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="relative">
-              <button
-                onClick={() => setPhaseDropdown(p => !p)}
-                disabled={updatingPhase}
-                className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm px-3 py-1.5 rounded-xl transition"
-              >
+            {canEdit && (
+              <div className="relative">
+                <button
+                  onClick={() => setPhaseDropdown(p => !p)}
+                  disabled={updatingPhase}
+                  className="flex items-center gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm px-3 py-1.5 rounded-xl transition"
+                >
+                  {PHASE_LABELS[cluster.phase] ?? cluster.phase}
+                  <ChevronDown size={14} className="text-white/40" />
+                </button>
+                {phaseDropdown && (
+                  <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-white/10 rounded-xl overflow-hidden z-10 w-36">
+                    {PHASES.map(p => (
+                      <button
+                        key={p}
+                        onClick={() => changePhase(p)}
+                        className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition ${p === cluster.phase ? "text-blue-400" : "text-white/70"}`}
+                      >
+                        {PHASE_LABELS[p]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {!canEdit && (
+              <span className="text-xs px-2 py-1 rounded-xl bg-white/5 text-white/30 border border-white/10">
                 {PHASE_LABELS[cluster.phase] ?? cluster.phase}
-                <ChevronDown size={14} className="text-white/40" />
-              </button>
-              {phaseDropdown && (
-                <div className="absolute right-0 top-full mt-1 bg-gray-900 border border-white/10 rounded-xl overflow-hidden z-10 w-36">
-                  {PHASES.map(p => (
-                    <button
-                      key={p}
-                      onClick={() => changePhase(p)}
-                      className={`w-full text-left px-3 py-2 text-sm hover:bg-white/5 transition ${p === cluster.phase ? "text-blue-400" : "text-white/70"}`}
-                    >
-                      {PHASE_LABELS[p]}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              </span>
+            )}
           </div>
 
           {/* Stats Row */}
@@ -970,16 +1092,26 @@ export default function ClusterDetailPage() {
           {/* Tab Content */}
           <div className="bg-gray-900 border border-white/10 rounded-2xl p-5">
             {tab === "members" && (
-              <MembersTab members={members} clusterId={clusterId} isAdmin={isAdmin} onRefresh={loadAll} />
+              <MembersTab members={members} clusterId={clusterId} isAdmin={isAdmin} canEdit={canEdit} onRefresh={loadAll} />
             )}
             {tab === "activities" && (
-              <ActivitiesTab activities={activities} clusterId={clusterId} onRefresh={loadAll} />
+              <ActivitiesTab activities={activities} clusterId={clusterId} canEdit={canEdit} onRefresh={loadAll} />
             )}
             {tab === "bring-three" && (
               <BringThreeTab members={bringThree} clusterId={clusterId} onRefresh={loadAll} />
             )}
           </div>
         </div>
+
+        {showAssignLeader && cluster && (
+          <AssignLeaderModal
+            cluster={cluster}
+            allLeaders={allLeaders}
+            leaderClusterMap={leaderClusterMap}
+            onClose={() => setShowAssignLeader(false)}
+            onSaved={async () => { setShowAssignLeader(false); await loadAll(); }}
+          />
+        )}
       </AdminLayout>
     </RequireAdminAuth>
   );

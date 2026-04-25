@@ -14,6 +14,7 @@ interface Application {
   notes: string | null;
   status: string;
   clusterId: string | null;
+  callStatus: string;
   referredByMemberId: string | null;
   referredByClusterId: string | null;
   createdAt: string;
@@ -470,6 +471,7 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
     total:            applications.length,
     unassigned:       applications.filter(a => !a.clusterId).length,
     assigned_cluster: applications.filter(a => !!a.clusterId).length,
+    call_pending:     applications.filter(a => !!a.clusterId && a.callStatus === "pending").length,
     interviewed:      interviews.length,
     cleared:          applications.filter(a => a.status === "cleared").length,
     rejected:         applications.filter(a => a.status === "rejected").length,
@@ -479,7 +481,8 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const tiles = [
     { key: "total",            label: "Total",               value: counts.total,            color: "text-white",       border: "border-white/10" },
     { key: "unassigned",       label: "Unassigned",          value: counts.unassigned,       color: "text-yellow-400",  border: "border-yellow-500/20" },
-    { key: "assigned_cluster", label: "Assigned to Cluster", value: counts.assigned_cluster, color: "text-blue-400",    border: "border-blue-500/20" },
+    { key: "assigned_cluster", label: "In Cluster",          value: counts.assigned_cluster, color: "text-blue-400",    border: "border-blue-500/20" },
+    { key: "call_pending",     label: "Call Pending",        value: counts.call_pending,     color: "text-orange-400",  border: "border-orange-500/20" },
     { key: "interviewed",      label: "Interviewed",         value: counts.interviewed,      color: "text-green-400",   border: "border-green-500/20" },
     { key: "cleared",          label: "Cleared",             value: counts.cleared,          color: "text-emerald-400", border: "border-emerald-500/20" },
     { key: "rejected",         label: "Rejected",            value: counts.rejected,         color: "text-red-400",     border: "border-red-500/20" },
@@ -493,6 +496,7 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
     if (selectedTile === "total")            return applications;
     if (selectedTile === "unassigned")       return applications.filter(a => !a.clusterId);
     if (selectedTile === "assigned_cluster") return applications.filter(a => !!a.clusterId);
+    if (selectedTile === "call_pending")     return applications.filter(a => !!a.clusterId && a.callStatus === "pending");
     if (selectedTile === "interviewed") {
       const ivIds = new Set(interviews.map(i => i.applicationId));
       return applications.filter(a => ivIds.has(a.id));

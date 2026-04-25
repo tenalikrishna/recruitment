@@ -339,6 +339,22 @@ export function registerRoutes(app: Express) {
     } catch (err) { next(err); }
   });
 
+  app.post("/api/clusters/:id/leaders", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { leaderId } = z.object({ leaderId: z.string() }).parse(req.body);
+      await storage.addClusterLeader(req.params.id, leaderId);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
+  app.delete("/api/clusters/:id/leaders", requireAuth, requireRole("admin"), async (req, res, next) => {
+    try {
+      const { leaderId } = z.object({ leaderId: z.string() }).parse(req.body);
+      await storage.removeClusterLeader(req.params.id, leaderId);
+      res.json({ ok: true });
+    } catch (err) { next(err); }
+  });
+
   app.post("/api/clusters/:id/assign", requireAuth, requireRole("admin"), async (req, res, next) => {
     try {
       const { applicationId } = z.object({ applicationId: z.string() }).parse(req.body);

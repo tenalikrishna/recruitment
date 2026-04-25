@@ -1,7 +1,7 @@
 import { db } from "./db";
 import {
   adminUsers, applications, assignments, teleInterviews, clusters, clusterLeaders,
-  clusterActivities, activityParticipation,
+  clusterActivities, activityParticipation, appCounter,
   type AdminUser, type InsertAdminUser,
   type Application, type InsertApplication,
   type Assignment, type InsertAssignment,
@@ -86,7 +86,18 @@ export async function getApplication(id: string): Promise<Application | undefine
 
 export async function createApplication(data: Omit<InsertApplication, "id">): Promise<Application> {
   const id = crypto.randomUUID();
-  await db.insert(applications).values({ ...data, id });
+
+  // Atomically get and increment the counter, seed row if missing
+  await db.insert(appCounter).values({ id: 1, nextValue: 1 }).onConflictDoNothing();
+  const counterResult = await db
+    .update(appCounter)
+    .set({ nextValue: sql`${appCounter.nextValue} + 1` })
+    .where(eq(appCounter.id, 1))
+    .returning({ val: appCounter.nextValue });
+  const counterVal = (counterResult[0]?.val ?? 2) - 1;
+  const applicantNumber = `HUM-${String(counterVal).padStart(4, "0")}`;
+
+  await db.insert(applications).values({ ...data, id, applicantNumber });
   const result = await db.select().from(applications).where(eq(applications.id, id));
   return result[0];
 }
@@ -270,6 +281,16 @@ export async function updateClusterLeaders(clusterId: string, leaderIds: string[
   }
 }
 
+export async function addClusterLeader(clusterId: string, leaderId: string): Promise<void> {
+  await db.insert(clusterLeaders).values({ id: crypto.randomUUID(), clusterId, leaderId }).onConflictDoNothing();
+}
+
+export async function removeClusterLeader(clusterId: string, leaderId: string): Promise<void> {
+  await db.delete(clusterLeaders).where(
+    and(eq(clusterLeaders.clusterId, clusterId), eq(clusterLeaders.leaderId, leaderId))
+  );
+}
+
 export async function assignApplicationToCluster(applicationId: string, clusterId: string): Promise<void> {
   await db.update(applications)
     .set({ clusterId, clusterAssignedAt: new Date() })
@@ -395,7 +416,7 @@ export async function updateMemberScreeningResult(applicationId: string, conduct
 // ─── Cluster Activities ───────────────────────────────────────────────────────
 
 export interface ActivityWithParticipation extends ClusterActivity {
-  participation: { memberId: string; participated: boolean }[];
+  participation: { memberId: string; memberName: string; participated: boolean }[];
   participantCount: number;
   memberCount: number;
 }
@@ -405,20 +426,33 @@ export async function getClusterActivities(clusterId: string): Promise<ActivityW
     .where(eq(clusterActivities.clusterId, clusterId))
     .orderBy(desc(clusterActivities.date));
 
-  const memberCount = (await db.select().from(applications).where(eq(applications.clusterId, clusterId))).length;
+  const clusterMembers = await db
+    .select({ id: applications.id, name: applications.name })
+    .from(applications)
+    .where(eq(applications.clusterId, clusterId));
 
   if (acts.length === 0) return [];
 
   const parts = await db.select().from(activityParticipation)
     .where(inArray(activityParticipation.activityId, acts.map(a => a.id)));
 
+  const memberMap = new Map(clusterMembers.map(m => [m.id, m.name]));
+
   return acts.map(a => {
-    const ap = parts.filter(p => p.activityId === a.id);
+    const partMap = new Map(
+      parts.filter(p => p.activityId === a.id).map(p => [p.memberId, p.participated])
+    );
+    // Include ALL current cluster members, not just those with existing rows
+    const participation = clusterMembers.map(m => ({
+      memberId: m.id,
+      memberName: m.name,
+      participated: partMap.get(m.id) ?? false,
+    }));
     return {
       ...a,
-      participation: ap.map(p => ({ memberId: p.memberId, participated: p.participated })),
-      participantCount: ap.filter(p => p.participated).length,
-      memberCount,
+      participation,
+      participantCount: participation.filter(p => p.participated).length,
+      memberCount: clusterMembers.length,
     };
   });
 }
@@ -566,6 +600,8 @@ export const storage = {
   createCluster,
   updateClusterPhase,
   updateClusterLeaders,
+  addClusterLeader,
+  removeClusterLeader,
   assignApplicationToCluster,
   getLeaderClusterMap,
   updateMemberScreeningResult,

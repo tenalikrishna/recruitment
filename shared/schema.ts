@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, boolean, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, boolean, integer, serial } from "drizzle-orm/pg-core";
 
 export const adminUsers = pgTable("admin_users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -54,6 +54,7 @@ export const applications = pgTable("applications", {
   clusterStatus: text("cluster_status").notNull().default("new"),   // new | active | inactive | dropped
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  applicantNumber: text("applicant_number"),
 });
 
 export type Application = typeof applications.$inferSelect;
@@ -150,3 +151,8 @@ export const activityParticipation = pgTable("activity_participation", {
 });
 
 export type ActivityParticipation = typeof activityParticipation.$inferSelect;
+
+export const appCounter = pgTable("app_counter", {
+  id: integer("id").primaryKey().default(1),
+  nextValue: integer("next_value").notNull().default(1),
+});
