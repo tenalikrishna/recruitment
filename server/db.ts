@@ -15,6 +15,23 @@ export async function runMigrations() {
       )
     `;
     await client`INSERT INTO app_counter (id, next_value) VALUES (1, 1) ON CONFLICT DO NOTHING`;
+
+    // Backfill HUM numbers for existing applicants that don't have one
+    const unNumbered = await client`
+      SELECT id FROM applications WHERE applicant_number IS NULL ORDER BY created_at ASC
+    `;
+    if (unNumbered.length > 0) {
+      const counterRow = await client`SELECT next_value FROM app_counter WHERE id = 1`;
+      let next = counterRow[0]?.next_value ?? 1;
+      for (const app of unNumbered) {
+        const num = `HUM-${String(next).padStart(4, "0")}`;
+        await client`UPDATE applications SET applicant_number = ${num} WHERE id = ${app.id}`;
+        next++;
+      }
+      await client`UPDATE app_counter SET next_value = ${next} WHERE id = 1`;
+      console.log(`Backfilled HUM numbers for ${unNumbered.length} applicants`);
+    }
+
     console.log("Migrations OK");
   } catch (err) {
     console.error("Migration warning:", err);

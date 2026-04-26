@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useAdminAuth, RequireAdminAuth, hasRole } from "@/lib/auth";
+import { useAdminAuth, RequireAdminAuth } from "@/lib/auth";
 import AdminLayout from "./layout";
-import { Phone, ChevronRight, X, Plus } from "lucide-react";
+import { Phone, ChevronRight, X } from "lucide-react";
 
 interface Application {
   id: string;
@@ -14,7 +14,6 @@ interface Application {
   notes: string | null;
   status: string;
   clusterId: string | null;
-  callStatus: string;
   referredByMemberId: string | null;
   referredByClusterId: string | null;
   createdAt: string;
@@ -49,11 +48,12 @@ interface Cluster {
 }
 
 const statusBadgeColors: Record<string, string> = {
-  unassigned:        "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-  assigned_cluster:  "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  interviewed:       "bg-green-500/10 text-green-400 border-green-500/20",
-  cleared:           "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  rejected:          "bg-red-500/10 text-red-400 border-red-500/20",
+  unassigned:  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  assigned:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  in_cluster:  "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  interviewed: "bg-green-500/10 text-green-400 border-green-500/20",
+  cleared:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  rejected:    "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
 const decisionBadgeColors: Record<string, string> = {
@@ -62,138 +62,6 @@ const decisionBadgeColors: Record<string, string> = {
   "partial-maybe": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
 };
 
-// ─── Assign to Cluster Modal ──────────────────────────────────────────────────
-
-function AssignToClusterModal({ app, clusters: initialClusters, onClose, onAssigned }: {
-  app: Application;
-  clusters: Cluster[];
-  onClose: () => void;
-  onAssigned: (appId: string, clusterId: string) => void;
-}) {
-  const [clusters, setClusters] = useState(initialClusters);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [newClusterName, setNewClusterName] = useState("");
-  const [creating, setCreating] = useState(false);
-
-  async function handleAssign() {
-    if (!selected) return;
-    setLoading(true); setError("");
-    try {
-      const res = await fetch(`/api/clusters/${selected}/assign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ applicationId: app.id }),
-      });
-      if (!res.ok) throw new Error((await res.json()).message || "Failed");
-      onAssigned(app.id, selected);
-    } catch (err: any) { setError(err.message); }
-    finally { setLoading(false); }
-  }
-
-  async function handleCreateCluster(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!newClusterName.trim()) return;
-    setCreating(true); setError("");
-    try {
-      const res = await fetch("/api/clusters", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ name: newClusterName.trim(), leaderIds: [] }),
-      });
-      if (!res.ok) throw new Error((await res.json()).message || "Failed");
-      const created = await res.json();
-      setClusters(p => [...p, created]);
-      setSelected(created.id);
-      setShowCreate(false);
-      setNewClusterName("");
-    } catch (err: any) { setError(err.message); }
-    finally { setCreating(false); }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-      <div className="relative bg-gray-900 border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-          <div>
-            <p className="text-white font-semibold text-sm">Assign to Cluster</p>
-            <p className="text-white/40 text-xs mt-0.5">{app.name}</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 text-white/30 hover:text-white hover:bg-white/5 rounded-lg transition">
-            <X size={16} />
-          </button>
-        </div>
-
-        <div className="px-5 py-4">
-          <div className="space-y-2 max-h-52 overflow-y-auto mb-3">
-            {clusters.map(c => (
-              <button
-                key={c.id}
-                onClick={() => setSelected(c.id)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition text-left ${
-                  selected === c.id
-                    ? "bg-blue-600/20 border-blue-500/50 text-white"
-                    : "bg-gray-800/60 border-white/5 hover:border-white/20 text-white/70"
-                }`}
-              >
-                <div>
-                  <p className="text-sm font-medium">{c.name}</p>
-                  <p className="text-xs text-white/30 mt-0.5">{c.memberCount} member{c.memberCount !== 1 ? "s" : ""}</p>
-                </div>
-                {selected === c.id && <span className="text-blue-400 text-xs">✓</span>}
-              </button>
-            ))}
-
-            {/* Inline create */}
-            {showCreate ? (
-              <form onSubmit={handleCreateCluster} className="flex gap-2 mt-1">
-                <input
-                  autoFocus type="text" value={newClusterName}
-                  onChange={e => setNewClusterName(e.target.value)}
-                  placeholder="New cluster name"
-                  className="flex-1 bg-gray-800 border border-blue-500/50 rounded-xl px-3 py-2 text-white text-sm placeholder-white/20 focus:outline-none"
-                />
-                <button type="submit" disabled={creating || !newClusterName.trim()}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs px-3 py-2 rounded-xl transition">
-                  {creating ? "…" : "Create"}
-                </button>
-                <button type="button" onClick={() => { setShowCreate(false); setNewClusterName(""); }}
-                  className="text-white/30 hover:text-white px-2">
-                  <X size={14} />
-                </button>
-              </form>
-            ) : (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="w-full flex items-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-white/10 hover:border-white/30 text-white/40 hover:text-white/70 text-sm transition"
-              >
-                <Plus size={14} /> Create New Cluster
-              </button>
-            )}
-          </div>
-
-          {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-
-          <div className="flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 bg-white/5 hover:bg-white/10 text-white/70 text-sm py-2.5 rounded-xl transition">
-              Cancel
-            </button>
-            <button onClick={handleAssign} disabled={!selected || loading}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-sm font-medium py-2.5 rounded-xl transition">
-              {loading ? "Assigning..." : "Assign"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ─── Applicant Detail Modal ────────────────────────────────────────────────────
 
@@ -410,7 +278,7 @@ function ScreenerDashboard() {
 // ─── Admin / Cluster Leader Dashboard ────────────────────────────────────────
 
 function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
-  const { user } = useAdminAuth();
+  useAdminAuth();
   const [applications, setApplications] = useState<Application[]>([]);
   const [interviews, setInterviews] = useState<TeleInterview[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -421,9 +289,7 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
-  const [assignApp, setAssignApp] = useState<Application | null>(null);
 
-  const isAdmin = hasRole(user, "admin");
 
   async function loadApplications() {
     const data = await fetch("/api/applications", { credentials: "include" }).then(r => r.json());
@@ -468,25 +334,25 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const clusterMap = new Map(clusters.map(c => [c.id, c]));
 
   const counts = {
-    total:            applications.length,
-    unassigned:       applications.filter(a => !a.clusterId).length,
-    assigned_cluster: applications.filter(a => !!a.clusterId).length,
-    call_pending:     applications.filter(a => !!a.clusterId && a.callStatus === "pending").length,
-    interviewed:      interviews.length,
-    cleared:          applications.filter(a => a.status === "cleared").length,
-    rejected:         applications.filter(a => a.status === "rejected").length,
-    recruitment:      interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
+    total:           applications.length,
+    unassigned:      applications.filter(a => !asgMap.has(a.id) && !a.clusterId).length,
+    interviewed:     interviews.length,
+    cleared:         applications.filter(a => a.status === "cleared").length,
+    rejected:        applications.filter(a => a.status === "rejected").length,
+    recruitment:     interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
+    in_cluster:      applications.filter(a => !!a.clusterId).length,
+    pending_cluster: applications.filter(a => a.status === "cleared" && !a.clusterId).length,
   };
 
   const tiles = [
-    { key: "total",            label: "Total",               value: counts.total,            color: "text-white",       border: "border-white/10" },
-    { key: "unassigned",       label: "Unassigned",          value: counts.unassigned,       color: "text-yellow-400",  border: "border-yellow-500/20" },
-    { key: "assigned_cluster", label: "In Cluster",          value: counts.assigned_cluster, color: "text-blue-400",    border: "border-blue-500/20" },
-    { key: "call_pending",     label: "Call Pending",        value: counts.call_pending,     color: "text-orange-400",  border: "border-orange-500/20" },
-    { key: "interviewed",      label: "Interviewed",         value: counts.interviewed,      color: "text-green-400",   border: "border-green-500/20" },
-    { key: "cleared",          label: "Cleared",             value: counts.cleared,          color: "text-emerald-400", border: "border-emerald-500/20" },
-    { key: "rejected",         label: "Rejected",            value: counts.rejected,         color: "text-red-400",     border: "border-red-500/20" },
-    { key: "recruitment",      label: "Recruitment Day ✓",   value: counts.recruitment,      color: "text-purple-400",  border: "border-purple-500/20" },
+    { key: "total",           label: "Total",               value: counts.total,           color: "text-white",       border: "border-white/10" },
+    { key: "unassigned",      label: "Unassigned",          value: counts.unassigned,      color: "text-yellow-400",  border: "border-yellow-500/20" },
+    { key: "interviewed",     label: "Interviewed",         value: counts.interviewed,     color: "text-green-400",   border: "border-green-500/20" },
+    { key: "cleared",         label: "Cleared",             value: counts.cleared,         color: "text-emerald-400", border: "border-emerald-500/20" },
+    { key: "rejected",        label: "Rejected",            value: counts.rejected,        color: "text-red-400",     border: "border-red-500/20" },
+    { key: "recruitment",     label: "Recruitment Day ✓",   value: counts.recruitment,     color: "text-purple-400",  border: "border-purple-500/20" },
+    { key: "in_cluster",      label: "In Cluster",          value: counts.in_cluster,      color: "text-blue-400",    border: "border-blue-500/20" },
+    { key: "pending_cluster", label: "Pending Cluster",     value: counts.pending_cluster, color: "text-orange-400",  border: "border-orange-500/20" },
   ];
 
   const selectedTileInfo = tiles.find(t => t.key === selectedTile);
@@ -495,8 +361,8 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
     if (!selectedTile) return [];
     if (selectedTile === "total")            return applications;
     if (selectedTile === "unassigned")       return applications.filter(a => !a.clusterId);
-    if (selectedTile === "assigned_cluster") return applications.filter(a => !!a.clusterId);
-    if (selectedTile === "call_pending")     return applications.filter(a => !!a.clusterId && a.callStatus === "pending");
+    if (selectedTile === "in_cluster")      return applications.filter(a => !!a.clusterId);
+    if (selectedTile === "pending_cluster") return applications.filter(a => a.status === "cleared" && !a.clusterId);
     if (selectedTile === "interviewed") {
       const ivIds = new Set(interviews.map(i => i.applicationId));
       return applications.filter(a => ivIds.has(a.id));
@@ -509,8 +375,9 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   })();
 
   function getDerivedStatus(app: Application) {
-    if (ivMap.has(app.id))  return "interviewed";
-    if (app.clusterId)      return "assigned_cluster";
+    if (ivMap.has(app.id)) return "interviewed";
+    if (app.clusterId)     return "in_cluster";
+    if (asgMap.has(app.id)) return "assigned";
     return "unassigned";
   }
 
@@ -576,8 +443,6 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
                     const assignedScreener = asg ? (screenerMap.get(asg.screenerId) ?? null) : null;
                     const appCluster = app.clusterId ? (clusterMap.get(app.clusterId) ?? null) : null;
                     const derivedStatus = getDerivedStatus(app);
-                    const showAssignBtn = isAdmin && !readOnly && selectedTile === "unassigned";
-
                     return (
                       <div key={app.id}
                         className="flex items-center justify-between px-5 py-3.5 hover:bg-white/5 transition group">
@@ -598,18 +463,9 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
                           </div>
                         </button>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
-                          {showAssignBtn ? (
-                            <button
-                              onClick={() => setAssignApp(app)}
-                              className="text-xs px-3 py-1 rounded-lg bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 border border-blue-500/30 transition"
-                            >
-                              Assign →
-                            </button>
-                          ) : (
-                            <span className={`text-xs px-2 py-0.5 rounded-full border ${statusBadgeColors[derivedStatus] || statusBadgeColors.unassigned}`}>
-                              {derivedStatus === "assigned_cluster" ? "in cluster" : derivedStatus}
-                            </span>
-                          )}
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${statusBadgeColors[derivedStatus] || statusBadgeColors.unassigned}`}>
+                            {derivedStatus === "in_cluster" ? "in cluster" : derivedStatus}
+                          </span>
                           <ChevronRight size={14} className="text-white/20 group-hover:text-white/40 transition" />
                         </div>
                       </div>
@@ -633,19 +489,6 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
         />
       )}
 
-      {/* Assign to cluster modal */}
-      {assignApp && (
-        <AssignToClusterModal
-          app={assignApp}
-          clusters={clusters}
-          onClose={() => setAssignApp(null)}
-          onAssigned={(appId, clusterId) => {
-            setApplications(prev => prev.map(a => a.id === appId ? { ...a, clusterId } : a));
-            setClusters(prev => prev.map(c => c.id === clusterId ? { ...c, memberCount: c.memberCount + 1 } : c));
-            setAssignApp(null);
-          }}
-        />
-      )}
     </div>
   );
 }
