@@ -10,6 +10,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { storage } from "./storage";
 import { registerRoutes } from "./routes";
+import { runMigrations } from "./db";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -79,6 +80,8 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 const port = parseInt(process.env.PORT || "3001");
 
 (async () => {
+  await runMigrations();
+
   if (process.env.NODE_ENV === "production") {
     const { serveStatic } = await import("./static");
     serveStatic(app);
