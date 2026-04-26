@@ -378,9 +378,11 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   })();
 
   function getDerivedStatus(app: Application) {
-    if (ivMap.has(app.id)) return "interviewed";
-    if (app.clusterId)     return "in_cluster";
-    if (asgMap.has(app.id)) return "assigned";
+    if (app.status === "cleared")   return "cleared";
+    if (app.status === "rejected")  return "rejected";
+    if (ivMap.has(app.id))          return "interviewed";
+    if (app.clusterId)              return "in_cluster";
+    if (asgMap.has(app.id))         return "assigned";
     return "unassigned";
   }
 
@@ -467,7 +469,7 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
                         </button>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${statusBadgeColors[derivedStatus] || statusBadgeColors.unassigned}`}>
-                            {derivedStatus === "in_cluster" ? "in cluster" : derivedStatus}
+                            {(({ in_cluster: "in cluster", call_pending: "call pending" } as Record<string, string>)[derivedStatus] ?? derivedStatus)}
                           </span>
                           <ChevronRight size={14} className="text-white/20 group-hover:text-white/40 transition" />
                         </div>
