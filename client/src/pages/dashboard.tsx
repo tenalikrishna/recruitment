@@ -334,19 +334,21 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const clusterMap = new Map(clusters.map(c => [c.id, c]));
 
   const counts = {
-    total:           applications.length,
-    unassigned:      applications.filter(a => !asgMap.has(a.id) && !a.clusterId).length,
-    interviewed:     interviews.length,
-    cleared:         applications.filter(a => a.status === "cleared").length,
-    rejected:        applications.filter(a => a.status === "rejected").length,
-    recruitment:     interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
-    in_cluster:      applications.filter(a => !!a.clusterId).length,
-    pending_cluster: applications.filter(a => a.status === "cleared" && !a.clusterId).length,
+    total:             applications.length,
+    unassigned:        applications.filter(a => !asgMap.has(a.id) && !a.clusterId).length,
+    call_pending:      applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id)).length,
+    interviewed:       interviews.length,
+    cleared:           applications.filter(a => a.status === "cleared").length,
+    rejected:          applications.filter(a => a.status === "rejected").length,
+    recruitment:       interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
+    in_cluster:        applications.filter(a => !!a.clusterId).length,
+    pending_cluster:   applications.filter(a => a.status === "cleared" && !a.clusterId).length,
   };
 
   const tiles = [
     { key: "total",           label: "Total",               value: counts.total,           color: "text-white",       border: "border-white/10" },
     { key: "unassigned",      label: "Unassigned",          value: counts.unassigned,      color: "text-yellow-400",  border: "border-yellow-500/20" },
+    { key: "call_pending",    label: "Call Pending",        value: counts.call_pending,    color: "text-sky-400",     border: "border-sky-500/20" },
     { key: "interviewed",     label: "Interviewed",         value: counts.interviewed,     color: "text-green-400",   border: "border-green-500/20" },
     { key: "cleared",         label: "Cleared",             value: counts.cleared,         color: "text-emerald-400", border: "border-emerald-500/20" },
     { key: "rejected",        label: "Rejected",            value: counts.rejected,        color: "text-red-400",     border: "border-red-500/20" },
@@ -360,7 +362,8 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   const filteredApplicants: Application[] = (() => {
     if (!selectedTile) return [];
     if (selectedTile === "total")            return applications;
-    if (selectedTile === "unassigned")       return applications.filter(a => !a.clusterId);
+    if (selectedTile === "unassigned")    return applications.filter(a => !asgMap.has(a.id) && !a.clusterId);
+    if (selectedTile === "call_pending")  return applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id));
     if (selectedTile === "in_cluster")      return applications.filter(a => !!a.clusterId);
     if (selectedTile === "pending_cluster") return applications.filter(a => a.status === "cleared" && !a.clusterId);
     if (selectedTile === "interviewed") {
