@@ -281,14 +281,15 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       const appData = await appRes.json();
       setApp(appData);
       const ivData = await ivRes.json();
+      const isScreenerOnly = hasRole(user, "screener") && !hasRole(user, "admin", "cluster_leader");
       if (ivData) {
+        // Screener-only users cannot view a submitted interview
+        if (isScreenerOnly) { navigate("/dashboard"); return; }
         const areas = ivData.selectedAreas ? JSON.parse(ivData.selectedAreas) : [];
         const progs = ivData.selectedPrograms ? JSON.parse(ivData.selectedPrograms) : [];
         const subj  = ivData.subjectExpertise ? JSON.parse(ivData.subjectExpertise) : [];
         setForm({ ...defaultForm, ...ivData, selectedAreas: areas, selectedPrograms: progs, subjectExpertise: subj });
-        if (hasRole(user, "screener") && !hasRole(user, "admin", "cluster_leader") && appData.status === "interviewed") setReadOnly(true);
       }
-      // no interview yet — form stays editable
       setLoading(false);
     }
     load();
@@ -342,6 +343,11 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
         body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Save failed");
+      const isScreenerOnly = hasRole(user, "screener") && !hasRole(user, "admin", "cluster_leader");
+      if (isScreenerOnly) {
+        navigate("/dashboard");
+        return;
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
@@ -375,14 +381,8 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       </div>
 
       {RO && (
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-          <p className="text-yellow-300 text-sm">This interview has been submitted. You can edit and re-save if needed.</p>
-          <button
-            onClick={() => setReadOnly(false)}
-            className="shrink-0 bg-yellow-500 hover:bg-yellow-400 text-gray-900 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
-          >
-            Edit
-          </button>
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-300 text-sm">
+          This interview has been submitted. Only admins can edit responses.
         </div>
       )}
 
