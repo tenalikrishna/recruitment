@@ -81,7 +81,7 @@ const interviewSchema = z.object({
   recruitmentDayAttendance: z.string().optional(),
   agreesToBeActive: z.string().optional(),
   comfortableSharingContent: z.boolean().optional(),
-  hasLongTermCommitment: z.boolean().optional(),
+  hasLongTermCommitment: z.boolean().nullable().optional(),
   reliabilityExample: z.string().optional(),
   finalConfirmation: z.string().optional(),
   finalPartialNotes: z.string().optional(),
