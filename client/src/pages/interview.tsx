@@ -288,6 +288,7 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
         setForm({ ...defaultForm, ...ivData, selectedAreas: areas, selectedPrograms: progs, subjectExpertise: subj });
         if (hasRole(user, "screener") && !hasRole(user, "admin", "cluster_leader") && appData.status === "interviewed") setReadOnly(true);
       }
+      // no interview yet — form stays editable
       setLoading(false);
     }
     load();
@@ -374,8 +375,14 @@ function InterviewForm({ applicationId }: { applicationId: string }) {
       </div>
 
       {RO && (
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 text-yellow-300 text-sm">
-          This interview has been submitted and is now read-only.
+        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+          <p className="text-yellow-300 text-sm">This interview has been submitted. You can edit and re-save if needed.</p>
+          <button
+            onClick={() => setReadOnly(false)}
+            className="shrink-0 bg-yellow-500 hover:bg-yellow-400 text-gray-900 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+          >
+            Edit
+          </button>
         </div>
       )}
 
