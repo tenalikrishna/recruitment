@@ -301,8 +301,8 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
       fetch("/api/applications", { credentials: "include" }).then(r => r.json()).then(setApplications),
       fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews),
       fetch("/api/assignments", { credentials: "include" }).then(r => r.json()).then(setAssignments),
-      fetch("/api/screeners", { credentials: "include" }).then(r => r.json()).then(setScreeners),
-      fetch("/api/clusters", { credentials: "include" }).then(r => r.json()).then(data => setClusters(Array.isArray(data) ? data : [])),
+      fetch("/api/screeners", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(setScreeners),
+      fetch("/api/clusters", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(data => setClusters(Array.isArray(data) ? data : [])),
     ];
     await Promise.all(fetches);
   }
@@ -508,14 +508,11 @@ export default function AdminDashboard() {
   return (
     <RequireAdminAuth>
       <AdminLayout>
-        <div className="space-y-10">
-          <ManagerDashboard readOnly={isScreenerOnly} />
-          {isScreenerOnly && (
-            <div className="border-t border-white/10 pt-8">
-              <ScreenerDashboard />
-            </div>
-          )}
-        </div>
+        {isScreenerOnly ? (
+          <ScreenerDashboard />
+        ) : (
+          <ManagerDashboard />
+        )}
       </AdminLayout>
     </RequireAdminAuth>
   );
