@@ -290,12 +290,12 @@ export default function ApplicantsPage() {
     async function load() {
       await reload();
       const fetches: Promise<void>[] = [];
-      if (!hasRole(user, "screener") || hasRole(user, "admin", "cluster_leader")) {
+      if (!hasRole(user, "screener") || hasRole(user, "admin")) {
         fetches.push(
           fetch("/api/screeners", { credentials: "include" }).then(r => r.json()).then(setScreeners)
         );
       }
-      if (hasRole(user, "admin", "cluster_leader")) {
+      if (hasRole(user, "admin")) {
         fetches.push(
           fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews)
         );
@@ -394,7 +394,7 @@ export default function ApplicantsPage() {
   }
 
   return (
-    <RequireAdminAuth roles={["admin", "cluster_leader"]}>
+    <RequireAdminAuth roles={["admin"]}>
       <AdminLayout>
         <div className="flex h-full gap-6">
 
@@ -603,12 +603,28 @@ export default function ApplicantsPage() {
                 </div>
               )}
 
+              {/* Interview responses link */}
+              {hasRole(user, "admin") && interviews.some(i => i.applicationId === selected.id) && (
+                <div className="mb-5">
+                  <button
+                    onClick={() => navigate(`/interview/${selected.id}`)}
+                    className="w-full flex items-center justify-between bg-green-500/10 border border-green-500/30 hover:bg-green-500/20 rounded-xl px-4 py-3 transition group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
+                      <span className="text-green-300 text-sm font-medium">Interview responses submitted</span>
+                    </div>
+                    <span className="text-green-400 text-sm group-hover:underline">View responses →</span>
+                  </button>
+                </div>
+              )}
+
               {/* Assignment section */}
               <div className="border-t border-white/10 pt-5">
                 <p className="text-white/40 text-xs uppercase tracking-wide mb-3">Screener Assignment</p>
                 {(() => {
                   const asg = getAssignment(selected.id);
-                  const canAssign = hasRole(user, "admin", "cluster_leader");
+                  const canAssign = hasRole(user, "admin");
                   return (
                     <div className="space-y-3">
                       {asg && (

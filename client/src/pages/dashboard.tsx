@@ -13,9 +13,6 @@ interface Application {
   programInterest: string | null;
   notes: string | null;
   status: string;
-  clusterId: string | null;
-  referredByMemberId: string | null;
-  referredByClusterId: string | null;
   createdAt: string;
 }
 
@@ -40,36 +37,27 @@ interface TeleInterview {
   recruitmentDayAttendance: string | null;
 }
 
-interface Cluster {
-  id: string;
-  name: string;
-  phase: string;
-  memberCount: number;
-}
-
 const statusBadgeColors: Record<string, string> = {
   unassigned:  "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
   assigned:    "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  in_cluster:  "bg-blue-500/10 text-blue-400 border-blue-500/20",
   interviewed: "bg-green-500/10 text-green-400 border-green-500/20",
   cleared:     "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
   rejected:    "bg-red-500/10 text-red-400 border-red-500/20",
+  call_pending:"bg-sky-500/10 text-sky-400 border-sky-500/20",
 };
 
 const decisionBadgeColors: Record<string, string> = {
-  cleared:         "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  rejected:        "bg-red-500/10 text-red-400 border-red-500/20",
-  "partial-maybe": "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  strong:  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+  maybe:   "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  reject:  "bg-red-500/10 text-red-400 border-red-500/20",
 };
 
+// ─── Applicant Detail Modal ───────────────────────────────────────────────────
 
-// ─── Applicant Detail Modal ────────────────────────────────────────────────────
-
-function ApplicantDetailModal({ app, screener, interview, cluster, onClose }: {
+function ApplicantDetailModal({ app, screener, interview, onClose }: {
   app: Application;
   screener: Screener | null;
   interview: TeleInterview | null;
-  cluster: Cluster | null;
   onClose: () => void;
 }) {
   return (
@@ -111,22 +99,6 @@ function ApplicantDetailModal({ app, screener, interview, cluster, onClose }: {
           )}
 
           <div className="bg-gray-800/60 rounded-xl p-3">
-            <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Cluster</p>
-            {cluster ? (
-              <p className="text-white text-sm">{cluster.name}</p>
-            ) : (
-              <p className="text-white/30 text-sm">Not assigned to a cluster</p>
-            )}
-          </div>
-
-          {app.referredByMemberId && (
-            <div className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-blue-400/70 text-xs uppercase tracking-wide mb-1">Referred via Bring Three</p>
-              <p className="text-white/70 text-sm">{app.notes || "Referred by a cluster member"}</p>
-            </div>
-          )}
-
-          <div className="bg-gray-800/60 rounded-xl p-3">
             <p className="text-white/40 text-xs uppercase tracking-wide mb-1">Screener</p>
             {screener ? (
               <p className="text-white text-sm">{screener.name}</p>
@@ -153,7 +125,7 @@ function ApplicantDetailModal({ app, screener, interview, cluster, onClose }: {
   );
 }
 
-// ─── Screener Dashboard ────────────────────────────────────────────────────────
+// ─── Screener Dashboard ───────────────────────────────────────────────────────
 
 function ScreenerDashboard() {
   const { user } = useAdminAuth();
@@ -255,8 +227,8 @@ function ScreenerDashboard() {
               const app = applications[asg.applicationId];
               if (!app) return null;
               return (
-                <button key={asg.id} onClick={() => navigate(`/interview/${app.id}`)}
-                  className="bg-gray-900/50 border border-white/5 hover:border-white/10 rounded-2xl p-4 text-left transition opacity-70 hover:opacity-100">
+                <button key={asg.id}
+                  className="bg-gray-900/50 border border-white/5 rounded-2xl p-4 text-left opacity-70 cursor-default">
                   <div className="flex items-start justify-between mb-3">
                     <div className="w-10 h-10 rounded-xl bg-green-600/10 flex items-center justify-center">
                       <span className="text-green-400 font-semibold text-sm">{app.name.charAt(0).toUpperCase()}</span>
@@ -275,36 +247,35 @@ function ScreenerDashboard() {
   );
 }
 
-// ─── Admin / Cluster Leader Dashboard ────────────────────────────────────────
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
 
-function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
-  useAdminAuth();
+function ManagerDashboard() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [interviews, setInterviews] = useState<TeleInterview[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [screeners, setScreeners] = useState<Screener[]>([]);
-  const [clusters, setClusters] = useState<Cluster[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState<string | null>(null);
   const [selectedTile, setSelectedTile] = useState<string | null>(null);
   const [detailApp, setDetailApp] = useState<Application | null>(null);
 
-
   async function loadApplications() {
     const data = await fetch("/api/applications", { credentials: "include" }).then(r => r.json());
-    setApplications(data);
+    setApplications(Array.isArray(data) ? data : []);
   }
 
   async function loadAll() {
-    const fetches: Promise<void>[] = [
-      fetch("/api/applications", { credentials: "include" }).then(r => r.json()).then(setApplications),
-      fetch("/api/interviews", { credentials: "include" }).then(r => r.json()).then(setInterviews),
-      fetch("/api/assignments", { credentials: "include" }).then(r => r.json()).then(setAssignments),
-      fetch("/api/screeners", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(setScreeners),
-      fetch("/api/clusters", { credentials: "include" }).then(r => r.ok ? r.json() : []).then(data => setClusters(Array.isArray(data) ? data : [])),
-    ];
-    await Promise.all(fetches);
+    const [apps, ivs, asgs, scrs] = await Promise.all([
+      fetch("/api/applications", { credentials: "include" }).then(r => r.json()),
+      fetch("/api/interviews",   { credentials: "include" }).then(r => r.json()),
+      fetch("/api/assignments",  { credentials: "include" }).then(r => r.json()),
+      fetch("/api/screeners",    { credentials: "include" }).then(r => r.ok ? r.json() : []),
+    ]);
+    setApplications(Array.isArray(apps) ? apps : []);
+    setInterviews(Array.isArray(ivs) ? ivs : []);
+    setAssignments(Array.isArray(asgs) ? asgs : []);
+    setScreeners(Array.isArray(scrs) ? scrs : []);
   }
 
   useEffect(() => { loadAll().finally(() => setLoading(false)); }, []);
@@ -327,45 +298,37 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
     }
   }
 
-  // Lookup maps
-  const ivMap = new Map(interviews.map(i => [i.applicationId, i]));
+  const ivMap  = new Map(interviews.map(i => [i.applicationId, i]));
   const asgMap = new Map(assignments.map(a => [a.applicationId, a]));
   const screenerMap = new Map(screeners.map(s => [s.id, s]));
-  const clusterMap = new Map(clusters.map(c => [c.id, c]));
 
   const counts = {
-    total:             applications.length,
-    unassigned:        applications.filter(a => !asgMap.has(a.id) && !a.clusterId).length,
-    call_pending:      applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id)).length,
-    interviewed:       interviews.length,
-    cleared:           applications.filter(a => a.status === "cleared").length,
-    rejected:          applications.filter(a => a.status === "rejected").length,
-    recruitment:       interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
-    in_cluster:        applications.filter(a => !!a.clusterId).length,
-    pending_cluster:   applications.filter(a => a.status === "cleared" && !a.clusterId).length,
+    total:        applications.length,
+    unassigned:   applications.filter(a => !asgMap.has(a.id)).length,
+    call_pending: applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id)).length,
+    interviewed:  interviews.length,
+    cleared:      applications.filter(a => a.status === "cleared").length,
+    rejected:     applications.filter(a => a.status === "rejected").length,
+    recruitment:  interviews.filter(i => i.recruitmentDayAttendance === "yes").length,
   };
 
   const tiles = [
-    { key: "total",           label: "Total",               value: counts.total,           color: "text-white",       border: "border-white/10" },
-    { key: "unassigned",      label: "Unassigned",          value: counts.unassigned,      color: "text-yellow-400",  border: "border-yellow-500/20" },
-    { key: "call_pending",    label: "Call Pending",        value: counts.call_pending,    color: "text-sky-400",     border: "border-sky-500/20" },
-    { key: "interviewed",     label: "Interviewed",         value: counts.interviewed,     color: "text-green-400",   border: "border-green-500/20" },
-    { key: "cleared",         label: "Cleared",             value: counts.cleared,         color: "text-emerald-400", border: "border-emerald-500/20" },
-    { key: "rejected",        label: "Rejected",            value: counts.rejected,        color: "text-red-400",     border: "border-red-500/20" },
-    { key: "recruitment",     label: "Recruitment Day ✓",   value: counts.recruitment,     color: "text-purple-400",  border: "border-purple-500/20" },
-    { key: "in_cluster",      label: "In Cluster",          value: counts.in_cluster,      color: "text-blue-400",    border: "border-blue-500/20" },
-    { key: "pending_cluster", label: "Pending Cluster",     value: counts.pending_cluster, color: "text-orange-400",  border: "border-orange-500/20" },
+    { key: "total",        label: "Total",              value: counts.total,        color: "text-white",       border: "border-white/10" },
+    { key: "unassigned",   label: "Unassigned",         value: counts.unassigned,   color: "text-yellow-400",  border: "border-yellow-500/20" },
+    { key: "call_pending", label: "Call Pending",       value: counts.call_pending, color: "text-sky-400",     border: "border-sky-500/20" },
+    { key: "interviewed",  label: "Interviewed",        value: counts.interviewed,  color: "text-green-400",   border: "border-green-500/20" },
+    { key: "cleared",      label: "Cleared",            value: counts.cleared,      color: "text-emerald-400", border: "border-emerald-500/20" },
+    { key: "rejected",     label: "Rejected",           value: counts.rejected,     color: "text-red-400",     border: "border-red-500/20" },
+    { key: "recruitment",  label: "Recruitment Day ✓",  value: counts.recruitment,  color: "text-purple-400",  border: "border-purple-500/20" },
   ];
 
   const selectedTileInfo = tiles.find(t => t.key === selectedTile);
 
   const filteredApplicants: Application[] = (() => {
     if (!selectedTile) return [];
-    if (selectedTile === "total")            return applications;
-    if (selectedTile === "unassigned")    return applications.filter(a => !asgMap.has(a.id) && !a.clusterId);
-    if (selectedTile === "call_pending")  return applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id));
-    if (selectedTile === "in_cluster")      return applications.filter(a => !!a.clusterId);
-    if (selectedTile === "pending_cluster") return applications.filter(a => a.status === "cleared" && !a.clusterId);
+    if (selectedTile === "total")        return applications;
+    if (selectedTile === "unassigned")   return applications.filter(a => !asgMap.has(a.id));
+    if (selectedTile === "call_pending") return applications.filter(a => asgMap.has(a.id) && !ivMap.has(a.id));
     if (selectedTile === "interviewed") {
       const ivIds = new Set(interviews.map(i => i.applicationId));
       return applications.filter(a => ivIds.has(a.id));
@@ -378,11 +341,10 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
   })();
 
   function getDerivedStatus(app: Application) {
-    if (app.status === "cleared")   return "cleared";
-    if (app.status === "rejected")  return "rejected";
-    if (ivMap.has(app.id))          return "interviewed";
-    if (app.clusterId)              return "in_cluster";
-    if (asgMap.has(app.id))         return "assigned";
+    if (app.status === "cleared")  return "cleared";
+    if (app.status === "rejected") return "rejected";
+    if (ivMap.has(app.id))         return "interviewed";
+    if (asgMap.has(app.id))        return "call_pending";
     return "unassigned";
   }
 
@@ -393,15 +355,13 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
           <h1 className="text-white text-xl font-semibold">Dashboard</h1>
           <p className="text-white/40 text-sm mt-0.5">Click a tile to view applicants</p>
         </div>
-        {!readOnly && (
-          <div className="flex items-center gap-3">
-            {syncMsg && <span className="text-sm text-green-400">{syncMsg}</span>}
-            <button onClick={handleSync} disabled={syncing}
-              className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition">
-              {syncing ? "Syncing…" : "Sync from Website"}
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {syncMsg && <span className="text-sm text-green-400">{syncMsg}</span>}
+          <button onClick={handleSync} disabled={syncing}
+            className="bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-xl transition">
+            {syncing ? "Syncing…" : "Sync from Website"}
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -425,7 +385,6 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
             ))}
           </div>
 
-          {/* Inline applicant list */}
           {selectedTile && (
             <div className="bg-gray-900 border border-white/10 rounded-2xl overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
@@ -446,7 +405,6 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
                   {filteredApplicants.map(app => {
                     const asg = asgMap.get(app.id);
                     const assignedScreener = asg ? (screenerMap.get(asg.screenerId) ?? null) : null;
-                    const appCluster = app.clusterId ? (clusterMap.get(app.clusterId) ?? null) : null;
                     const derivedStatus = getDerivedStatus(app);
                     return (
                       <div key={app.id}
@@ -462,14 +420,13 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
                             <p className="text-white text-sm font-medium truncate">{app.name}</p>
                             <p className="text-white/40 text-xs truncate">
                               {app.phone}{app.city ? ` · ${app.city}` : ""}
-                              {appCluster ? ` · ${appCluster.name}` : ""}
-                              {assignedScreener && !appCluster ? ` · ${assignedScreener.name}` : ""}
+                              {assignedScreener ? ` · ${assignedScreener.name}` : ""}
                             </p>
                           </div>
                         </button>
                         <div className="flex items-center gap-2 shrink-0 ml-3">
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${statusBadgeColors[derivedStatus] || statusBadgeColors.unassigned}`}>
-                            {(({ in_cluster: "in cluster", call_pending: "call pending" } as Record<string, string>)[derivedStatus] ?? derivedStatus)}
+                            {({ call_pending: "call pending" } as Record<string, string>)[derivedStatus] ?? derivedStatus}
                           </span>
                           <ChevronRight size={14} className="text-white/20 group-hover:text-white/40 transition" />
                         </div>
@@ -483,17 +440,14 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
         </>
       )}
 
-      {/* Detail modal */}
       {detailApp && (
         <ApplicantDetailModal
           app={detailApp}
           screener={(() => { const a = asgMap.get(detailApp.id); return a ? (screenerMap.get(a.screenerId) ?? null) : null; })()}
           interview={ivMap.get(detailApp.id) ?? null}
-          cluster={detailApp.clusterId ? (clusterMap.get(detailApp.clusterId) ?? null) : null}
           onClose={() => setDetailApp(null)}
         />
       )}
-
     </div>
   );
 }
@@ -503,16 +457,12 @@ function ManagerDashboard({ readOnly = false }: { readOnly?: boolean }) {
 export default function AdminDashboard() {
   const { user } = useAdminAuth();
   const isScreenerOnly = user
-    ? !user.role.split(",").map(r => r.trim()).some(r => r === "admin" || r === "cluster_leader")
+    ? !user.role.split(",").map(r => r.trim()).some(r => r === "admin")
     : false;
   return (
     <RequireAdminAuth>
       <AdminLayout>
-        {isScreenerOnly ? (
-          <ScreenerDashboard />
-        ) : (
-          <ManagerDashboard />
-        )}
+        {isScreenerOnly ? <ScreenerDashboard /> : <ManagerDashboard />}
       </AdminLayout>
     </RequireAdminAuth>
   );
